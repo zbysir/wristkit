@@ -269,13 +269,22 @@ def draw_clawd(img, dy=0, eyes="open", arms=(0, 0)):
             img.putpixel((ex + x, 20 + dy + y), CLAWD["E"] + (255,))
 
 
+def draw_laptop_back(d, glow):
+    # 笔记本从背面看：Clawd 坐在后面，屏幕朝着它，挡住下半身和腿。猫用的 draw_laptop 屏幕朝外、压在身子下沿，
+    # 套在 Clawd 上腿从后面露出来，手也够不着
+    rect(d, 9, 27, 30, 35, C["laptop_dark"])
+    rect(d, 10, 28, 29, 34, C["laptop"])
+    rect(d, 19, 30, 20, 31, (255, 255, 255) if glow else (180, 186, 196))  # 背面的小灯
+    rect(d, 7, 36, 32, 37, C["laptop_dark"])
+
+
 def clawd_work_frames():
     out = []
     for i in range(6):
         img = new_frame()
         dy = 1 if i in (2, 3) else 0
-        draw_clawd(img, dy, "focus", (1, 0) if i % 2 == 0 else (0, 1))  # 两只手轮流敲
-        draw_laptop(ImageDraw.Draw(img), glow=i % 3 != 2)
+        draw_clawd(img, dy, "focus", (2, 0) if i % 2 == 0 else (0, 2))  # 两只手轮流敲
+        draw_laptop_back(ImageDraw.Draw(img), glow=i % 3 != 2)
         out.append(finish(img))
     return out
 
