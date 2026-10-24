@@ -1,0 +1,222 @@
+<template>
+  <div class="page" style="height: {{pageH}}px">
+    <swiper id="pager" class="pager" style="height: {{pageH}}px" vertical="true" loop="false" indicator="false">
+      <div class="cat" style="height: {{pageH}}px">
+        <text class="headline" style="color: {{headColor}}">{{headline}}</text>
+        <div class="sprite-box" @click="next">
+          <image-animator id="cat" class="sprite" images="{{frames}}" duration="{{frameMs}}" iteration="infinite"></image-animator>
+        </div>
+        <text class="hint">{{hint}}</text>
+        <div class="meter">
+          <text class="meter-name">饱腹</text>
+          <div class="track">
+            <div class="fill" style="width: {{food.w}}px; background-color: {{food.color}}"></div>
+          </div>
+          <text class="meter-n" style="color: {{food.color}}">{{food.n}}</text>
+        </div>
+        <div class="meter">
+          <text class="meter-name">心情</text>
+          <div class="track">
+            <div class="fill" style="width: {{mood.w}}px; background-color: {{mood.color}}"></div>
+          </div>
+          <text class="meter-n" style="color: {{mood.color}}">{{mood.n}}</text>
+        </div>
+      </div>
+      <div class="today" style="height: {{pageH}}px">
+        <text class="today-title">今天干了什么</text>
+        <div class="row" for="{{log}}" tid="t">
+          <text class="row-time">{{$item.time}}</text>
+          <div class="row-dot" style="background-color: {{$item.color}}"></div>
+          <text class="row-act">{{$item.label}}</text>
+        </div>
+      </div>
+    </swiper>
+  </div>
+</template>
+
+<script>
+// 橘黑猫：一只自己过日子的电子宠物。规则在 logic.js：饱腹、心情会随时间变，猫按时间表睡觉、上班、学英语、
+// 看电视、玩玩具、吃东西，太饿、太闷会自己去吃、去玩。点猫让它换下一件事做 15 分钟（喂它、陪它玩）。
+// 往上翻是今天干过的事。状态存在手环上（@system.storage），不需要 Mac。
+import device from '@system.device'
+import storage from '@system.storage'
+import vibrator from '@system.vibrator'
+import { newState, advance, tap, look, DEFAULT_CONFIG } from './logic.js'
+
+const KEY = 'tiger-cat'
+// 每个动作：帧数、每帧多少毫秒、标题、颜色
+const ACTS = {
+  sleep: [8, 400, '睡觉中 zZ', '#8ca0ff'],
+  work: [6, 300, '在上班', '#2ea0ff'],
+  english: [8, 450, '在学英语', '#6fd0ff'],
+  tv: [8, 400, '在看电视', '#ffd25a'],
+  toy: [6, 260, '在玩毛线球', '#5ab0ff'],
+  happy: [6, 260, '好开心！', '#ff6e96'],
+  eat: [6, 320, '在吃小鱼', '#ff8c1a'],
+  hungry: [6, 420, '饿了…喂喂我', '#ff9f1c'],
+  sad: [6, 420, '不开心…陪我玩', '#9aa0aa']
+}
+
+function pad(n) {
+  return (n < 10 ? '0' : '') + n
+}
+
+function meter(v) {
+  const n = Math.round(v)
+  return { w: Math.max(4, Math.round((n / 100) * 110)), n: n, color: n < 30 ? '#ff6b6b' : n < 60 ? '#ffb02e' : '#3ddc84' }
+}
+
+function readConfig(c) {
+  // App 设置里填的数字可能是字符串、可能超范围，不对的用默认值
+  const cfg = Object.assign({}, DEFAULT_CONFIG)
+  for (const k of ['sleepAt', 'wakeAt', 'workStart', 'workEnd']) {
+    const v = Number(c && c[k])
+    if (c && c[k] !== '' && c[k] != null && v >= 0 && v < 24) cfg[k] = v
+  }
+  if (c && c.workdays != null) cfg.workdays = c.workdays !== false && c.workdays !== 'false'
+  return cfg
+}
+
+export default {
+  private: {
+    pageH: 303,
+    headline: '',
+    headColor: '#ffffff',
+    hint: '',
+    frames: [],
+    frameMs: '400ms',
+    food: { w: 4, n: 0, color: '#3ddc84' },
+    mood: { w: 4, n: 0, color: '#3ddc84' },
+    log: []
+  },
+
+  onInit() {
+    this.cfg = Object.assign({}, DEFAULT_CONFIG)
+    this.s = null
+    this.loaded = false // 存档读到之前不算、不存，不然会拿一只新猫盖掉存档
+    this.animKey = ''
+    const done = (data) => {
+      try {
+        if (data) this.s = JSON.parse(data)
+      } catch (e) {}
+      this.loaded = true
+      this.refresh()
+    }
+    storage.get({ key: KEY, success: done, fail: () => done('') })
+    this.tick = setInterval(() => this.refresh(), 60000)
+  },
+
+  onConfig(config) {
+    this.cfg = readConfig(config)
+    this.refresh()
+  },
+
+  onShow() {
+    device.getInfo({
+      success: (info) => {
+        const w = info.screenWidth || 0
+        const h = info.screenHeight || 0
+        if (w > 0 && h > 0) this.pageH = Math.round(h / (w / 212))
+      }
+    })
+    this.refresh()
+  },
+
+  onReady() {
+    this.playAnim()
+  },
+
+  onHide() {
+    this.stopAnim()
+  },
+
+  onDestroy() {
+    this.stopAnim()
+    clearInterval(this.tick)
+  },
+
+  refresh() {
+    if (!this.loaded) return
+    const now = Date.now()
+    this.s = advance(this.s || newState(now), now, this.cfg)
+    this.render(now)
+  },
+
+  next() {
+    if (!this.loaded) return
+    const now = Date.now()
+    this.s = tap(this.s || newState(now), now, this.cfg)
+    vibrator.vibrate({ mode: 'short' })
+    this.render(now)
+  },
+
+  render(now) {
+    const s = this.s
+    const shown = look(s)
+    const a = ACTS[shown]
+    this.headline = a[2]
+    this.headColor = a[3]
+    this.startAnim(shown)
+    if (s.manualUntil > now) this.hint = '陪它 ' + Math.ceil((s.manualUntil - now) / 60000) + ' 分钟 · 点猫换'
+    else this.hint = '点猫换个事做'
+    this.food = meter(s.food)
+    this.mood = meter(s.mood)
+    const log = []
+    for (let i = s.log.length - 1; i >= 0 && log.length < 9; i--) {
+      const x = s.log[i]
+      const d = new Date(x.t)
+      log.push({ t: x.t, time: pad(d.getHours()) + ':' + pad(d.getMinutes()), label: ACTS[x.act][2], color: ACTS[x.act][3] })
+    }
+    this.log = log
+    storage.set({ key: KEY, value: JSON.stringify(s) })
+  },
+
+  // 动画由手环系统播（image-animator）。换了帧列表要等它换上再 start，太早调不生效
+  startAnim(act) {
+    if (this.animKey === act) return
+    this.animKey = act
+    const a = ACTS[act]
+    const frames = []
+    for (let i = 0; i < a[0]; i++) frames.push({ src: '/assets/' + act + '_' + i + '.png' })
+    this.frames = frames
+    this.frameMs = a[1] + 'ms'
+    clearTimeout(this.animTimer)
+    this.animTimer = setTimeout(() => this.playAnim(), 300)
+  },
+
+  playAnim() {
+    try {
+      this.$element('cat').start()
+    } catch (e) {}
+  },
+
+  stopAnim() {
+    clearTimeout(this.animTimer)
+    this.animKey = '' // 回到前台时重新开始
+    try {
+      this.$element('cat').stop()
+    } catch (e) {}
+  }
+}
+</script>
+
+<style>
+.page { width: 212px; flex-direction: column; background-color: #000000; }
+.pager { width: 212px; }
+.cat { width: 212px; flex-direction: column; align-items: center; padding-top: 10px; padding-left: 10px; padding-right: 10px; background-color: #0a0c12; }
+.headline { width: 192px; height: 26px; lines: 1; font-size: 18px; font-weight: bold; text-align: center; }
+.sprite-box { width: 192px; height: 172px; justify-content: center; align-items: center; }
+.sprite { width: 168px; height: 168px; }
+.hint { height: 18px; font-size: 11px; color: #6a707a; }
+.meter { width: 192px; height: 22px; margin-top: 4px; flex-direction: row; align-items: center; }
+.meter-name { width: 38px; font-size: 13px; color: #c9ced8; }
+.track { width: 110px; height: 10px; border-radius: 5px; background-color: #22252c; }
+.fill { height: 10px; border-radius: 5px; }
+.meter-n { width: 44px; font-size: 13px; text-align: right; }
+.today { width: 212px; flex-direction: column; padding: 12px; background-color: #0a0c12; }
+.today-title { font-size: 18px; font-weight: bold; color: #ffffff; margin-bottom: 6px; }
+.row { height: 26px; flex-direction: row; align-items: center; }
+.row-time { width: 50px; font-size: 13px; color: #8a8f98; }
+.row-dot { width: 8px; height: 8px; border-radius: 4px; margin-right: 8px; }
+.row-act { font-size: 14px; color: #e8ebf1; lines: 1; }
+</style>

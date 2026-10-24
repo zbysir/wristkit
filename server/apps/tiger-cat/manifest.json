@@ -1,0 +1,40 @@
+{
+  "name": "tiger-cat",
+  "title": "橘黑猫",
+  "order": 10,
+  "settings": [
+    {
+      "key": "sleepAt",
+      "title": "几点睡觉",
+      "description": "0 到 23 点",
+      "type": "number",
+      "default": 23
+    },
+    {
+      "key": "wakeAt",
+      "title": "几点起床",
+      "description": "0 到 23 点",
+      "type": "number",
+      "default": 7
+    },
+    {
+      "key": "workdays",
+      "title": "工作日白天上班",
+      "description": "关掉的话，猫每天都在家里玩",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "workStart",
+      "title": "几点上班",
+      "type": "number",
+      "default": 9
+    },
+    {
+      "key": "workEnd",
+      "title": "几点下班",
+      "type": "number",
+      "default": 18
+    }
+  ]
+}

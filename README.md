@@ -141,7 +141,7 @@ make test       # 跑 Go 测试（app 的测试会在 goja 里模拟手环，跑
   - `bt/`：经典蓝牙 RFCOMM 和 BLE（cgo 调 macOS 的蓝牙框架）。
   - `usage/`：接管 Claude Code 状态栏拿额度的开关。
   - `micloud/`：扫码登录小米账号、拉手环密钥。
-- `server/apps/`：内置 app（Agent 猫：手环上的界面 + Mac 上读 herdr、额度、提醒），打包进 App。
+- `server/apps/`：内置 app（Agent 猫：手环上的界面 + Mac 上读 herdr、额度、提醒；橘黑猫：只在手环上跑的电子宠物，帧由 `tools/gen_tigercat.py` 生成），打包进 App。
 - `server/app/frontend/src/uxrt.ts`：App 里的预览，在浏览器里模拟快应用框架，跑编好的 app。
 - `tools/gen_pet.py`、`tools/gen_fish.py`：逐像素手绘猫和小鱼干（怎么画见 [docs/pixel-cat.md](docs/pixel-cat.md)）。
 - `spike/`、`server/cmd/spike/`：真机实验的代码（[docs/render-spike.md](docs/render-spike.md)）。

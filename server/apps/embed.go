@@ -3,5 +3,5 @@ package apps
 
 import "embed"
 
-//go:embed all:agent-cat
+//go:embed all:agent-cat all:tiger-cat
 var FS embed.FS
