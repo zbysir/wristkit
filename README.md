@@ -82,7 +82,7 @@ export default {
 { "name": "counter", "title": "计数" }
 ```
 
-写法是快应用官方的 `.ux`（模板 + 脚本 + 样式，像 Vue），布局是 flex。每个 app 在手环上是一个单独的应用。要读 Mac 上的文件、执行命令、发通知、点亮手环，就再写一个在 Mac 上跑的 `server.js`，把数据推给手环上的 app。Agent 猫读 herdr、提醒都是这么做的，本体不认识 herdr。app 可以声明配置项，App 会照着画出设置表单。想改内置 app 的话，在 App 里点它的「复制出来改」。
+写法是快应用官方的 `.ux`（模板 + 脚本 + 样式，像 Vue），布局是 flex。每个 app 在手环上是一个单独的应用。要读 Mac 上的文件、执行命令、发通知、点亮手环，就再写一个在 Mac 上跑的 `server.js`，把数据推给手环上的 app。Agent 猫读 herdr、提醒都是这么做的，本体不认识 herdr。app 可以声明配置项，App 会照着画出设置表单。想改内置 app 的话，在 App 里点它的「复制出来改」。别人放在 GitHub 上的 app，在 App 里贴上地址就能下载（见 [docs/apps.md](docs/apps.md#分享-app放到-github-上)）。
 
 完整说明见 [docs/apps.md](docs/apps.md)。
 

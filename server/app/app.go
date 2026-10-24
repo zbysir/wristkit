@@ -627,6 +627,61 @@ func (a *App) RevokeApp(name string) error {
 	return cfg.Save(a.cfgPath)
 }
 
+// DownloadApp 从 GitHub 下载 app（地址是仓库里 app 目录的链接，或 owner/仓库/目录），返回 app 名字。
+func (a *App) DownloadApp(input string) (string, error) {
+	svc, err := a.service()
+	if err != nil {
+		return "", err
+	}
+	name, cfg, err := svc.DownloadApp(a.ctx, input)
+	if err != nil {
+		return "", err
+	}
+	return name, a.saveCfg(cfg)
+}
+
+// CheckAppUpdate：从 GitHub 下的 app 有没有新版本。
+func (a *App) CheckAppUpdate(name string) (bool, error) {
+	svc, err := a.service()
+	if err != nil {
+		return false, err
+	}
+	return svc.CheckAppUpdate(a.ctx, name)
+}
+
+// UpdateApp 从 GitHub 重新下载这个 app。
+func (a *App) UpdateApp(name string) error {
+	svc, err := a.service()
+	if err != nil {
+		return err
+	}
+	cfg, err := svc.UpdateApp(a.ctx, name)
+	if err != nil {
+		return err
+	}
+	return a.saveCfg(cfg)
+}
+
+// DeleteApp 把用户 app 移到废纸篓。
+func (a *App) DeleteApp(name string) error {
+	svc, err := a.service()
+	if err != nil {
+		return err
+	}
+	cfg, err := svc.DeleteApp(name)
+	if err != nil {
+		return err
+	}
+	return a.saveCfg(cfg)
+}
+
+func (a *App) saveCfg(cfg service.Config) error {
+	a.mu.Lock()
+	a.cfg = &cfg
+	a.mu.Unlock()
+	return cfg.Save(a.cfgPath)
+}
+
 // SetClaudeUsage 打开或关掉「显示 Claude Code 额度」：接管 Claude Code 的状态栏命令拿额度，关掉时原样还原。
 func (a *App) SetClaudeUsage(on bool) error {
 	svc, err := a.service()

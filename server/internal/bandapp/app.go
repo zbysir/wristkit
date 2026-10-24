@@ -118,6 +118,7 @@ type App struct {
 	Manifest
 	Builtin bool
 	Dir     string // 用户 app 的目录；内置 app 为空
+	Source  string // 从 GitHub 下的 app：来源链接（app 目录里 .source.json 的 url）；不是的为空
 
 	Package    string     // 手环上的包名
 	Version    int        // 安装包的版本号：内容变了就变（不一定变大），和手环上装的比，不一样就要更新
@@ -197,6 +198,14 @@ func compile(fsys fs.FS, dir string, builtin bool) (*App, error) {
 		return nil, err
 	}
 	a := &App{Manifest: m, Builtin: builtin, Dir: dir, Package: packageName(m.Name)}
+	if raw, err := fs.ReadFile(fsys, ".source.json"); err == nil && !builtin {
+		var src struct {
+			URL string `json:"url"`
+		}
+		if json.Unmarshal(raw, &src) == nil {
+			a.Source = src.URL
+		}
+	}
 	if err := a.build(fsys); err != nil {
 		a.Err = "编译失败：" + err.Error()
 		return a, nil

@@ -637,6 +637,7 @@ type Info struct {
 	Title       string         `json:"title"`
 	Builtin     bool           `json:"builtin"`
 	Dir         string         `json:"dir"`
+	Source      string         `json:"source"` // 从 GitHub 下的：来源链接
 	Error       string         `json:"error"`
 	Package     string         `json:"package"`    // 手环上的包名
 	Version     int            `json:"version"`    // 安装包的版本号，和手环上装的不一样就要更新
@@ -663,7 +664,7 @@ func (h *Host) Apps() []Info {
 		}
 		hasServer := a.ServerCode != ""
 		out[i] = Info{
-			Name: a.Name, Title: a.Title, Builtin: a.Builtin, Dir: a.Dir, Error: err, Package: a.Package, Version: a.Version,
+			Name: a.Name, Title: a.Title, Builtin: a.Builtin, Dir: a.Dir, Source: a.Source, Error: err, Package: a.Package, Version: a.Version,
 			Foreground: h.foreground[a.Name], HasServer: hasServer, Permissions: a.Permissions.Describe(), PermKey: a.Permissions.Key(),
 			NeedGrant: hasServer && !h.allowedLocked(a),
 			Settings:  a.Settings, Config: h.configOf(a),

@@ -1,11 +1,11 @@
 import {useCallback, useEffect, useState} from 'react'
 import type {ReactNode} from 'react'
-import {Bell, FolderOpen, Gauge, LayoutGrid, PawPrint, RefreshCw, Watch} from 'lucide-react'
+import {Bell, Download, FolderOpen, Gauge, LayoutGrid, PawPrint, RefreshCw, Watch} from 'lucide-react'
 import {
-    AllowApp, CopyBuiltin, GetState, InstallApp, Launch, OpenApp, OpenAppDir, RevokeApp, SetAppConfig, SetClaudeUsage,
-    SetPet, TestNotify, Uninstall,
+    AllowApp, CheckAppUpdate, CopyBuiltin, DeleteApp, DownloadApp, GetState, InstallApp, Launch, OpenApp, OpenAppDir, RevokeApp,
+    SetAppConfig, SetClaudeUsage, SetPet, TestNotify, Uninstall, UpdateApp,
 } from '../wailsjs/go/main/App'
-import {EventsOn} from '../wailsjs/runtime/runtime'
+import {BrowserOpenURL, EventsOn} from '../wailsjs/runtime/runtime'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
@@ -254,6 +254,17 @@ const LEGACY_NAMES: Record<string, string> = {
 function AppsCard({state, run, onSelect}: { state: AppState, run: Run, onSelect: (name: string) => void }) {
     const list = state.apps ?? []
     const off = !state.connected || !!state.installing
+    const [newer, setNewer] = useState<Record<string, boolean>>({}) // 从 GitHub 下的 app：检查过有没有新版本
+    const [deleting, setDeleting] = useState('') // 点了「删除」，等再点一下确认
+    const check = (name: string) => run('检查新版本', async () => {
+        const has = await CheckAppUpdate(name)
+        setNewer(m => ({...m, [name]: has}))
+    })
+    const remove = (a: AppInfo, installed: boolean) => run('删除', async () => {
+        setDeleting('')
+        if (installed && state.connected) await Uninstall(a.package)
+        await DeleteApp(a.name)
+    })
     return (
         <Card>
             <CardHeader>
@@ -267,7 +278,7 @@ function AppsCard({state, run, onSelect}: { state: AppState, run: Run, onSelect:
                     return (
                         <div key={a.name} className="flex flex-col gap-2">
                             <Row title={<span className="flex items-center gap-2">{a.title}{a.foreground && <Badge variant="secondary">手环上开着</Badge>}</span>}
-                                 hint={(a.builtin ? '内置' : shortPath(a.dir)) + ' · ' + st.text}>
+                                 hint={<>{a.source ? <SourceLink url={a.source}/> : a.builtin ? '内置' : shortPath(a.dir)}{' · ' + st.text}</>}>
                                 <div className="flex gap-2">
                                     {a.needGrant && <Button size="sm" onClick={() => run('允许', () => AllowApp(a.name, a.permKey))}>允许</Button>}
                                     {!a.builtin && !a.needGrant && (a.permissions?.length ?? 0) > 0 &&
@@ -281,6 +292,18 @@ function AppsCard({state, run, onSelect}: { state: AppState, run: Run, onSelect:
                                     </Button>
                                     {a.builtin && <Button variant="outline" size="sm" title="把源码复制到 app 目录，改了就替换内置的这个"
                                                           onClick={() => run('复制', () => CopyBuiltin(a.name))}>复制出来改</Button>}
+                                    {a.source && (newer[a.name]
+                                        ? <Button variant="outline" size="sm" title="从 GitHub 下载新版本，下好了再点「更新」装到手环"
+                                                  onClick={() => run('下载新版本', async () => {
+                                                      await UpdateApp(a.name)
+                                                      setNewer(m => ({...m, [a.name]: false}))
+                                                  })}>下载新版本</Button>
+                                        : <Button variant="ghost" size="sm" onClick={() => check(a.name)}>{newer[a.name] === false ? '已是最新' : '检查新版本'}</Button>)}
+                                    {!a.builtin && (deleting === a.name
+                                        ? <Button variant="destructive" size="sm" title={st.installed ? '手环上装的也一起卸载' : undefined}
+                                                  onClick={() => remove(a, st.installed)}>确定删除？</Button>
+                                        : <Button variant="ghost" size="sm" title="移到废纸篓"
+                                                  onClick={() => setDeleting(a.name)}>删除</Button>)}
                                 </div>
                             </Row>
                             {busy && (
@@ -306,12 +329,41 @@ function AppsCard({state, run, onSelect}: { state: AppState, run: Run, onSelect:
                         </div>
                     </Row>
                 ))}
+                <DownloadRow run={run}/>
                 <div>
                     <Button variant="outline" size="sm" onClick={() => run('打开 app 目录', OpenAppDir)}><FolderOpen/>打开 app 目录</Button>
                 </div>
             </CardContent>
         </Card>
     )
+}
+
+// 从 GitHub 下载 app：贴 app 目录的链接，或者 owner/仓库/目录
+function DownloadRow({run}: { run: Run }) {
+    const [input, setInput] = useState('')
+    const [busy, setBusy] = useState(false)
+    const go = () => {
+        if (!input.trim() || busy) return
+        setBusy(true)
+        run('下载', () => DownloadApp(input.trim()).then(() => setInput('')).finally(() => setBusy(false)))
+    }
+    return (
+        <div className="flex flex-col gap-1.5">
+            <div className="flex gap-2">
+                <Input value={input} placeholder="从 GitHub 下载：贴 app 目录的链接，或者 owner/仓库/目录"
+                       onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()}/>
+                <Button size="sm" disabled={busy || !input.trim()} onClick={go}><Download/>{busy ? '下载中' : '下载'}</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">app 会在手环和这台 Mac 上运行，只装你信任的来源</p>
+        </div>
+    )
+}
+
+// 来源链接显示成 owner/仓库/目录，点了在浏览器打开
+function SourceLink({url}: { url: string }) {
+    const m = url.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)(?:\/tree\/([^/]+)\/?(.*))?$/)
+    const text = m ? m[1] + (m[3] ? '/' + m[3] : '') + (m[2] && m[2] !== 'HEAD' ? '@' + m[2] : '') : url
+    return <a className="cursor-pointer underline-offset-2 hover:underline" onClick={() => BrowserOpenURL(url)}>{text}</a>
 }
 
 function shortPath(p: string): string {

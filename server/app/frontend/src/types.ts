@@ -38,6 +38,7 @@ export interface AppInfo {
     title: string
     builtin: boolean
     dir: string
+    source: string // 从 GitHub 下的：来源链接
     error: string
     package: string // 手环上的包名
     version: number // 安装包的版本号，和手环上装的不一样就要更新
