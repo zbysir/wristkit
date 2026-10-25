@@ -112,6 +112,8 @@ export default {
   },
 
   onShow() {
+    this.shown = true
+    this.animKey = '' // 下面 refresh 时重新换帧、开始播
     device.getInfo({
       success: (info) => {
         const w = info.screenWidth || 0
@@ -126,11 +128,14 @@ export default {
     this.playAnim()
   },
 
+  // 退到后台、关掉时不碰 $element：这时候手环框架拿不到元素，会报「can not get element at status 3」
   onHide() {
+    this.shown = false
     this.stopAnim()
   },
 
   onDestroy() {
+    this.shown = false
     this.stopAnim()
     clearInterval(this.tick)
   },
@@ -185,6 +190,7 @@ export default {
   },
 
   playAnim() {
+    if (!this.shown) return
     try {
       this.$element('cat').start()
     } catch (e) {}
@@ -193,9 +199,6 @@ export default {
   stopAnim() {
     clearTimeout(this.animTimer)
     this.animKey = '' // 回到前台时重新开始
-    try {
-      this.$element('cat').stop()
-    } catch (e) {}
   }
 }
 </script>
