@@ -19,4 +19,4 @@
 - 界面上的文字用用户能懂的说法，不露实现上的概念（`server.js`、store、渲染器协议这类）。这些概念只出现在写 app 的文档（docs/apps.md）和代码里。
 - 方案按所有用户的环境设计，不按作者本机的情况：接入用户环境的（改 Claude Code 设置、读本机文件）要能开关、能还原，拿不到数据的用户自动隐藏或降级，不报错。
 
-写 app、app 能用的接口和限制见 [docs/apps.md](docs/apps.md)，写 app 的流程见 [skills/wristkit-app](skills/wristkit-app/SKILL.md)；手环上实测出来的限制（消息大小、节点创建速度、JS 引擎能力）见 [docs/render-spike.md](docs/render-spike.md)。
+写 app、app 能用的接口和限制见 [docs/apps.md](docs/apps.md)，写 app 的流程见 [skills/wristkit-app](skills/wristkit-app/SKILL.md)；手环上实测出来的限制（消息大小、节点创建速度、JS 引擎能力）见 [docs/render-spike.md](docs/render-spike.md)；表盘（装表盘、表盘格式、表盘跳转、在手环上看文件）见 [docs/watchface.md](docs/watchface.md)。

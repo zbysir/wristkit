@@ -145,6 +145,7 @@ make test       # 跑 Go 测试（app 的测试会在 goja 里模拟手环，跑
 - `server/app/frontend/src/uxrt.ts`：App 里的预览，在浏览器里模拟快应用框架，跑编好的 app。
 - `tools/gen_pet.py`、`tools/gen_fish.py`：逐像素手绘猫和小鱼干（怎么画见 [docs/pixel-cat.md](docs/pixel-cat.md)）。
 - `spike/`、`server/cmd/spike/`：真机实验的代码（[docs/render-spike.md](docs/render-spike.md)）。
+- 表盘的调研（协议、文件格式、为什么表盘点不开第三方快应用）见 [docs/watchface.md](docs/watchface.md)。
 - `*.py`：最早的 Python 实现，留作参考。
 
 ### 签名
