@@ -5,6 +5,7 @@
   K 轮廓  F 毛色  S 条纹  D 暗部  C 浅色（口鼻、围兜、爪子）  P 粉色  E 眼睛  W 眼睛高光  . 透明
 表情是在格子图上替换几个格子；尾巴、牌子、Z、彩纸、笔记本用代码画（尾巴先画，压在身体后面）。
 画布 40×40 格，按最近邻放大 SCALE 倍。三种猫共用格子图，只换配色。
+手环上的帧直接按屏幕上显示的像素（BAND_PX）出，不让手环缩放：手环缩放会插值，没描边的 Clawd 边缘发糊。
 怎么画、踩过哪些坑见 docs/pixel-cat.md。
 
     .venv/bin/python tools/gen_pet.py [预览图.png]
@@ -21,6 +22,9 @@ from PIL import Image, ImageDraw
 
 GRID = 40
 SCALE = 4
+# 手环上的帧边长：index.ux 里 .sprite 是 140px（designWidth 212），手环屏幕宽 336 像素，140 × 336 / 212 ≈ 222。
+# 改了 .sprite 的大小这里要跟着改
+BAND_PX = 222
 OUT = os.environ.get("PET_OUT") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "apps", "agent-cat", "assets")
 # App 自己的一套（菜单栏图标、连接向导里的猫），和插件的分开放，只要用到的几种动作
 APP_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "app", "frontend", "public", "pet")
@@ -185,6 +189,25 @@ def finish(img):
     return img.resize((GRID * SCALE, GRID * SCALE), Image.NEAREST)
 
 
+def band_frame(img):
+    # 放大 SCALE 倍的帧 → 手环上的帧：每格占 BAND_PX / GRID（不是整数）个像素，格子边界取整，左右对称
+    grid = img.resize((GRID, GRID), Image.NEAREST)
+    edge = [round(i * BAND_PX / GRID) for i in range(GRID + 1)]
+    out = Image.new("RGBA", (BAND_PX, BAND_PX), (0, 0, 0, 0))
+    for y in range(GRID):
+        for x in range(GRID):
+            c = grid.getpixel((x, y))
+            if c[3]:
+                out.paste(c, (edge[x], edge[y], edge[x + 1], edge[y + 1]))
+    return out
+
+
+def png(img):
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
 def work_frames(pal):
     out = []
     for i in range(6):
@@ -337,22 +360,21 @@ CLAWD_STATES = {"work": clawd_work_frames, "alert": clawd_alert_frames, "celebra
 
 
 def main():
-    rows, files = [], {}
+    rows, files, band_files = [], {}, {}
     for skin in list(SKINS) + ["clawd"]:
         row = []
         for state in STATES:
             frames = CLAWD_STATES[state]() if skin == "clawd" else STATES[state](SKINS[skin])
             for i, img in enumerate(frames):
-                buf = io.BytesIO()
-                img.save(buf, format="PNG", optimize=True)
-                files[f"{skin}/{state}_{i}.png"] = buf.getvalue()
+                files[f"{skin}/{state}_{i}.png"] = png(img)
+                band_files[f"{skin}/{state}_{i}.png"] = png(band_frame(img))
             row.append(frames)
         rows.append(row)
 
-    for out, skins, keep in ((OUT, None, None), (APP_OUT, APP_SKINS, APP_STATES)):
+    for out, written, skins, keep in ((OUT, band_files, None, None), (APP_OUT, files, APP_SKINS, APP_STATES)):
         for skin in skins or list(SKINS) + ["clawd"]:  # 删掉旧帧（比如帧数变少时多出来的）
             shutil.rmtree(os.path.join(out, skin), ignore_errors=True)
-        for name, data in files.items():
+        for name, data in written.items():
             skin, file = name.split("/")
             if (skins and skin not in skins) or (keep and file.split("_")[0] not in keep):
                 continue
