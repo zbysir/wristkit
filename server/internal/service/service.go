@@ -97,18 +97,19 @@ func NewDevice(cfg Config) (*xiaomi.Device, *xiaomi.Apps, error) {
 
 // State 是给界面看的快照。
 type State struct {
-	Connected  bool           `json:"connected"`
-	Transport  string         `json:"transport"` // classic / ble
-	LastError  string         `json:"lastError"`
-	Packages   []string       `json:"packages"`   // 手环上装了的 app（包名）
-	Versions   map[string]int `json:"versions"`   // 手环上装了的快应用 → 版本号（versionCode）
-	Foreground string         `json:"foreground"` // 手环上正在前台的快应用
-	Usage      []usage.Source `json:"usage"`
-	Apps       []bandapp.Info `json:"apps"`
-	AppDir     string         `json:"appDir"`
-	Legacy     []string       `json:"legacy"`   // 手环上还装着的旧版快应用
-	LastPush   int64          `json:"lastPush"` // 毫秒
-	Settings   map[string]any `json:"settings"`
+	Connected  bool            `json:"connected"`
+	Transport  string          `json:"transport"` // classic / ble
+	LastError  string          `json:"lastError"`
+	Packages   []string        `json:"packages"`   // 手环上装了的 app（包名）
+	Versions   map[string]int  `json:"versions"`   // 手环上装了的快应用 → 版本号（versionCode）
+	Foreground string          `json:"foreground"` // 手环上正在前台的快应用
+	Usage      []usage.Source  `json:"usage"`
+	Apps       []bandapp.Info  `json:"apps"`
+	AppDir     string          `json:"appDir"`
+	Legacy     []string        `json:"legacy"`   // 手环上还装着的旧版快应用
+	LastPush   int64           `json:"lastPush"` // 毫秒
+	Battery    *xiaomi.Battery `json:"battery"`  // 手环电量；没读到是 null
+	Settings   map[string]any  `json:"settings"`
 }
 
 type Service struct {
@@ -129,6 +130,8 @@ type Service struct {
 	foreground map[string]bool // 快应用打开时发 hello、离开时发 bye
 	lastErr    string
 	transport  string
+	battery    *xiaomi.Battery
+	batteryAt  time.Time // 上次读电量的时间
 
 	dirty chan struct{} // 连接断了，叫醒重连循环
 }
@@ -196,7 +199,9 @@ func New(cfg Config) (*Service, error) {
 		}
 		s.host.HandleMessage(pkg, m)
 	}
+	dev.OnBattery = func(b xiaomi.Battery) { s.setBattery(&b) }
 	dev.OnDisconnect = func() {
+		s.setBattery(nil)
 		s.host.Disconnected()
 		s.publishBand()
 		s.changed()
@@ -232,6 +237,7 @@ func (s *Service) State() State {
 	st := State{
 		Connected: s.dev.Connected(),
 		Transport: s.transport,
+		Battery:   s.battery,
 		LastError: s.lastErr,
 		Packages:  append([]string{}, s.packages...),
 		Versions:  maps.Clone(s.versions),
@@ -520,6 +526,7 @@ func (s *Service) ensureConnected(ctx context.Context) {
 func (s *Service) keepConnected(ctx context.Context) {
 	for ctx.Err() == nil {
 		s.ensureConnected(ctx)
+		s.refreshBattery()
 		select {
 		case <-ctx.Done():
 			return
@@ -527,6 +534,38 @@ func (s *Service) keepConnected(ctx context.Context) {
 		case <-time.After(time.Minute): // 定期回到 ensureConnected 检查连接
 		}
 	}
+}
+
+// 隔多久读一次手环电量
+const batteryInterval = 10 * time.Minute
+
+// refreshBattery 隔 batteryInterval 读一次电量。有的手环不回电量，就不显示。
+func (s *Service) refreshBattery() {
+	s.mu.Lock()
+	due := time.Since(s.batteryAt) >= batteryInterval
+	if due {
+		s.batteryAt = time.Now()
+	}
+	s.mu.Unlock()
+	if !due || !s.dev.Connected() {
+		return
+	}
+	b, err := s.dev.Battery()
+	if err != nil {
+		slog.Debug("读手环电量失败", "err", err)
+		return
+	}
+	s.setBattery(&b)
+}
+
+func (s *Service) setBattery(b *xiaomi.Battery) {
+	s.mu.Lock()
+	if b == nil {
+		s.batteryAt = time.Time{} // 重连后马上再读
+	}
+	s.battery = b
+	s.mu.Unlock()
+	s.changed()
 }
 
 // ---------- 界面操作 ----------

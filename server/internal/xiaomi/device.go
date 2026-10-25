@@ -28,6 +28,7 @@ const (
 	authCmdNonce = 26
 	authCmdAuth  = 27
 
+	systemCmdBattery    = 1
 	systemCmdClock      = 3
 	notificationCmdSend = 0
 )
@@ -52,6 +53,8 @@ type Device struct {
 	// 收到某个命令 type 的包（未被 Request 认领时）交给这里，参数是原始 protobuf 字节
 	Handlers     map[uint32]func([]byte)
 	OnDisconnect func()
+	// 手环主动报上来电量（比如插上、拔下充电器）
+	OnBattery func(Battery)
 
 	secret []byte
 	dial   Dialer
@@ -468,6 +471,12 @@ func (d *Device) dispatch(body []byte) {
 		d.handleAuth(cmd)
 		return
 	}
+	if typ == typeSystem && id == systemCmdBattery && d.OnBattery != nil {
+		if b, err := ParseBattery(body); err == nil {
+			d.OnBattery(b)
+		}
+		return
+	}
 	slog.Debug("手环命令", "type", typ, "id", id)
 }
 
@@ -491,6 +500,39 @@ func (d *Device) SetTime(now time.Time) error {
 		}},
 	}
 	return d.SendCommand(cmd)
+}
+
+// Battery 是手环的电量。
+type Battery struct {
+	Level    int  `json:"level"` // 0–100
+	Charging bool `json:"charging"`
+}
+
+// Battery 读手环的电量。
+func (d *Device) Battery() (Battery, error) {
+	data, err := proto.Marshal(&xiaomipb.Command{Type: proto.Uint32(typeSystem), Subtype: proto.Uint32(systemCmdBattery)})
+	if err != nil {
+		return Battery{}, err
+	}
+	raw, err := d.Request(typeSystem, systemCmdBattery, data, systemCmdBattery, 5*time.Second)
+	if err != nil {
+		return Battery{}, err
+	}
+	return ParseBattery(raw)
+}
+
+// ParseBattery 解析手环回的（或主动报上来的）电量命令。
+func ParseBattery(raw []byte) (Battery, error) {
+	cmd := &xiaomipb.Command{}
+	if err := proto.Unmarshal(raw, cmd); err != nil {
+		return Battery{}, err
+	}
+	b := cmd.GetSystem().GetPower().GetBattery()
+	if b == nil || b.Level == nil {
+		return Battery{}, errors.New("手环没回电量")
+	}
+	// state 同 Gadgetbridge：1 充电中
+	return Battery{Level: int(b.GetLevel()), Charging: b.GetState() == 1}, nil
 }
 
 // Notify 给手环发一条通知（手环会震动；亮不亮屏看手环上的设置）。

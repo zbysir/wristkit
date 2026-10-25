@@ -2,6 +2,7 @@
 //
 //	miband app                 常驻：跑 app 在 Mac 上的部分、给手环上开着的 app 推数据（Agent 猫会在 agent 跑完/卡住时提醒）
 //	miband notify 标题 [正文]   发一条通知
+//	miband battery             看手环电量
 //	miband apps                列出手环上的第三方快应用
 //	miband install <rpk>       安装快应用并打开
 //	miband pack <目录> <rpk>     把 wristkit app 目录（manifest.json + index.ux）或快应用源码目录（manifest.json、app.ux、pages/…）
@@ -42,7 +43,7 @@ func run() int {
 	configPath := flag.String("config", "", "配置文件路径（默认找 ./config.json，再找可执行文件上一级目录）")
 	verbose := flag.Bool("v", false, "打印调试日志")
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "用法: miband [-config path] [-v] <app|notify|apps|install|remove|launch|pack|key> ...")
+		fmt.Fprintln(os.Stderr, "用法: miband [-config path] [-v] <app|notify|battery|apps|install|remove|launch|pack|key> ...")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -109,6 +110,15 @@ func run() int {
 			}
 			time.Sleep(time.Second) // 给手环一点时间展示，再断开
 			fmt.Println("已发送")
+			return nil
+		})
+	case "battery":
+		err = withDevice(ctx, cfg, func(dev *xiaomi.Device, _ *xiaomi.Apps) error {
+			b, err := dev.Battery()
+			if err != nil {
+				return err
+			}
+			fmt.Printf("电量 %d%%，充电中: %v\n", b.Level, b.Charging)
 			return nil
 		})
 	case "apps":

@@ -29,6 +29,7 @@ export interface AppState {
     appDir: string
     legacy: string[] | null // 手环上还装着的旧版快应用
     lastPush: number
+    battery: { level: number, charging: boolean } | null // 手环电量；没读到是 null
     settings: Settings | null
 }
 

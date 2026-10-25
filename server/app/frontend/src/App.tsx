@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from 'react'
 import type {ReactNode} from 'react'
-import {Bell, Download, FolderOpen, Gauge, LayoutGrid, PawPrint, RefreshCw, Watch} from 'lucide-react'
+import {Bell, Download, Zap, FolderOpen, Gauge, LayoutGrid, PawPrint, RefreshCw, Watch} from 'lucide-react'
 import {
     AllowApp, CheckAppUpdate, CopyBuiltin, DeleteApp, DownloadApp, GetState, InstallApp, Launch, OpenApp, OpenAppDir, RevokeApp,
     SetAppConfig, SetClaudeUsage, SetPet, TestNotify, Uninstall, UpdateApp,
@@ -148,9 +148,13 @@ function StatusBadge({state}: { state: AppState }) {
         text = state.lastError ? '连接失败，重试中' : '正在连接手环…'
         dot = state.lastError ? 'bg-red-500' : 'bg-amber-500'
     }
+    const battery = state.connected ? state.battery : null
     return (
-        <Badge variant="outline" title={state.lastError} className="gap-1.5">
+        <Badge variant="outline" title={state.lastError || (battery?.charging ? '充电中' : undefined)} className="gap-1.5">
             <span className={`size-1.5 rounded-full ${dot}`}/>{text}
+            {battery && <span className="flex items-center text-muted-foreground">
+                · {battery.charging && <Zap className="size-3"/>}{battery.level}%
+            </span>}
         </Badge>
     )
 }

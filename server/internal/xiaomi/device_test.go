@@ -415,3 +415,16 @@ func TestReconnectAfterPassiveClose(t *testing.T) {
 		t.Fatal("重连卡住了：上一条连接没关，新连接一直在等")
 	}
 }
+
+func TestParseBattery(t *testing.T) {
+	raw, _ := proto.Marshal(&xiaomipb.Command{Type: proto.Uint32(typeSystem), Subtype: proto.Uint32(systemCmdBattery),
+		System: &xiaomipb.System{Power: &xiaomipb.Power{Battery: &xiaomipb.Battery{Level: proto.Uint32(82), State: proto.Uint32(1)}}}})
+	b, err := ParseBattery(raw)
+	if err != nil || b != (Battery{Level: 82, Charging: true}) {
+		t.Fatalf("got %+v, %v", b, err)
+	}
+	raw, _ = proto.Marshal(&xiaomipb.Command{Type: proto.Uint32(typeSystem), Subtype: proto.Uint32(systemCmdBattery)})
+	if _, err := ParseBattery(raw); err == nil {
+		t.Fatal("没电量字段应该报错")
+	}
+}

@@ -239,6 +239,12 @@ func trayText(st AppState) string {
 	case !st.Connected:
 		return "正在连接手环…"
 	}
+	if b := st.Battery; b != nil {
+		if b.Charging {
+			return fmt.Sprintf("手环已连接 · %d%% 充电中", b.Level)
+		}
+		return fmt.Sprintf("手环已连接 · %d%%", b.Level)
+	}
 	return "手环已连接"
 }
 
