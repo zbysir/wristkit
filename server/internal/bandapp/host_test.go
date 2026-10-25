@@ -366,6 +366,11 @@ func TestAgentCat(t *testing.T) {
 		t.Fatal("打开时应该发 hello")
 	}
 	b.waitText("都在休息 zZ")
+	// 还不知道选的哪只猫（config 没到）时先不画，不然会先闪一下默认的橘猫
+	sprite := findNode(b.tree(), func(n map[string]any) bool { return hasClass(n, "sprite") })
+	if frames, _ := sprite["images"].([]any); len(frames) != 0 {
+		t.Fatalf("config 没到就画了猫：%v", frames)
+	}
 	b.store("agents", agentList("blocked", "working", "idle"))
 	tree := b.waitText("1 个等你处理！")
 	b.waitText("api|1/2|任务api")
@@ -378,15 +383,15 @@ func TestAgentCat(t *testing.T) {
 	b.waitText("web|2/2|任务web")
 	// 配置：换猫
 	b.store("config", map[string]any{"skin": "gray"})
-	sprite := findNode(b.tree(), func(n map[string]any) bool { return hasClass(n, "sprite") })
+	sprite = findNode(b.tree(), func(n map[string]any) bool { return hasClass(n, "sprite") })
 	frames, _ := sprite["images"].([]any)
-	if len(frames) != 6 || frames[0].(map[string]any)["src"] != "/assets/gray/alert_0.png" || sprite["duration"] != "467ms" {
+	if len(frames) != 6 || frames[0].(map[string]any)["src"] != "/assets/222/gray/alert_0.png" || sprite["duration"] != "467ms" {
 		t.Fatalf("猫的动画不对：%v %v", sprite["images"], sprite["duration"])
 	}
 	// 安装包里有这张图
 	found := false
 	for _, f := range a.Files {
-		found = found || f.Name == "assets/gray/alert_0.png"
+		found = found || f.Name == "assets/222/gray/alert_0.png"
 	}
 	if !found {
 		t.Fatal("安装包里没有猫的图")

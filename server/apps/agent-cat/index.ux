@@ -58,7 +58,7 @@
           <div class="block" @click="pick('done')">
             <div class="block-row">
               <image class="block-fish" src="/assets/fish.png"></image>
-              <text class="block-num" style="color: #e29640">{{fish}}</text>
+              <text class="block-num block-fill" style="color: #e29640">{{fish}}</text>
             </div>
             <text class="block-label">完成的任务</text>
             <div class="mark" style="background-color: {{metric === 'done' ? '#e29640' : '#22252c'}}"></div>
@@ -104,6 +104,9 @@ const PRIORITY = { blocked: 0, done: 1, working: 2, idle: 3, unknown: 4 }
 const COLOR = { blocked: '#ff9f1c', working: '#2ea0ff', done: '#3ddc84', idle: '#5c6068', unknown: '#5c6068' }
 const HEAD_COLOR = { alert: '#ff9f1c', impatient: '#ff5c5c', work: '#2ea0ff', celebrate: '#3ddc84', sleep: '#c9ced8' }
 const FRAMES = { work: 6, alert: 6, celebrate: 6, sleep: 8 }
+// 帧的目录带着图的尺寸（tools/gen_pet.py 的 BAND_PX）：手环按路径记着图的尺寸，同一个路径换了尺寸不一样的图，
+// 还按原来的尺寸缩放，画得比框大
+const FRAME_DIR = '/assets/222/'
 const ACTION = { alert: ['alert', 2800], impatient: ['alert', 1200], work: ['work', 3600], celebrate: ['celebrate', 3200], sleep: ['sleep', 9600] }
 const METRIC = {
   done: { today: '#e29640', other: '#5c4a3a' },
@@ -168,6 +171,12 @@ export default {
     this.animKey = ''
     this.page = 0
     this.tick = setInterval(() => this.refresh('tick'), 20000) // 卡着的时候分钟数要往上走
+    // 选的是哪只猫在 config 里：手环上存的那份要过一会儿才读出来，读出来之前先不画猫（不然先闪一下默认的橘猫）。
+    // 没存过、Mac 也没连上时，等一会儿还是画默认的
+    this.skinWait = setTimeout(() => {
+      this.skinWait = null
+      this.refresh('wait')
+    }, 2000)
   },
 
   // Mac 推来的数据（wristkit 的运行时调用）
@@ -198,6 +207,7 @@ export default {
   onDestroy() {
     this.stopAnim()
     clearInterval(this.tick)
+    clearTimeout(this.skinWait)
   },
 
   // ---------- 数据 → 界面 ----------
@@ -262,7 +272,7 @@ export default {
     this.counts.working = n.working
     this.counts.done = n.done
     this.counts.idle = n.idle
-    this.startAnim(skin, ACTION[mood][0], ACTION[mood][1])
+    if (st.config || !this.skinWait) this.startAnim(skin, ACTION[mood][0], ACTION[mood][1])
 
     // 气泡
     const sorted = agents.slice().sort((x, y) => (PRIORITY[x.status] === undefined ? 4 : PRIORITY[x.status]) - (PRIORITY[y.status] === undefined ? 4 : PRIORITY[y.status]) || (y.seq || 0) - (x.seq || 0) || byProjectThenId(x, y))
@@ -365,7 +375,7 @@ export default {
     this.animKey = key
     const n = FRAMES[action]
     const frames = []
-    for (let i = 0; i < n; i++) frames.push({ src: '/assets/' + skin + '/' + action + '_' + i + '.png' })
+    for (let i = 0; i < n; i++) frames.push({ src: FRAME_DIR + skin + '/' + action + '_' + i + '.png' })
     this.frames = frames
     this.frameMs = Math.round(duration / n) + 'ms'
     clearTimeout(this.animTimer)
@@ -449,6 +459,7 @@ export default {
 .block-row { flex-direction: row; align-items: center; }
 .block-fish { width: 28px; height: 14px; margin-right: 6px; }
 .block-num { font-size: 20px; font-weight: bold; lines: 1; }
+.block-fill { flex: 1; } /* 和小鱼干放在一行时占满剩下的宽度：不给宽度的话手环把它算窄了，后半截显示不出来 */
 .block-label { font-size: 11px; color: #8a8f98; }
 .mark { width: 20px; height: 2px; margin-top: 3px; border-radius: 1px; }
 .chart { width: 192px; margin-top: 8px; flex-direction: row; justify-content: space-between; align-items: flex-end; }

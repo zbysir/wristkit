@@ -1,4 +1,4 @@
-"""手绘像素猫的动作帧，输出到 Agent 猫的 server/apps/agent-cat/assets/<皮肤>/<状态>_<序号>.png。
+"""手绘像素猫的动作帧，输出到 Agent 猫的 server/apps/agent-cat/assets/<BAND_PX>/<皮肤>/<状态>_<序号>.png。
 插件宿主按图片内容哈希推到手环，换了图会自动推新的，不用管手环缓存。
 
 猫本身是一张字符格子图（BASE），每个字符一个像素：
@@ -23,7 +23,8 @@ from PIL import Image, ImageDraw
 GRID = 40
 SCALE = 4
 # 手环上的帧边长：index.ux 里 .sprite 是 140px（designWidth 212），手环屏幕宽 336 像素，140 × 336 / 212 ≈ 222。
-# 改了 .sprite 的大小这里要跟着改
+# 改了 .sprite 的大小这里要跟着改，index.ux 的 FRAME_DIR 也要跟着改：帧放在以尺寸命名的目录里，
+# 手环按路径记着图的尺寸，同一个路径换成尺寸不一样的图，还按原来的尺寸缩放
 BAND_PX = 222
 OUT = os.environ.get("PET_OUT") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "apps", "agent-cat", "assets")
 # App 自己的一套（菜单栏图标、连接向导里的猫），和插件的分开放，只要用到的几种动作
@@ -371,7 +372,11 @@ def main():
             row.append(frames)
         rows.append(row)
 
-    for out, written, skins, keep in ((OUT, band_files, None, None), (APP_OUT, files, APP_SKINS, APP_STATES)):
+    # 删掉手环上旧的帧：以前直接放在 assets/<皮肤>/ 下，或者在别的尺寸目录里
+    for name in os.listdir(OUT):
+        if name.isdigit() or name in SKINS or name == "clawd":
+            shutil.rmtree(os.path.join(OUT, name))
+    for out, written, skins, keep in ((os.path.join(OUT, str(BAND_PX)), band_files, None, None), (APP_OUT, files, APP_SKINS, APP_STATES)):
         for skin in skins or list(SKINS) + ["clawd"]:  # 删掉旧帧（比如帧数变少时多出来的）
             shutil.rmtree(os.path.join(out, skin), ignore_errors=True)
         for name, data in written.items():
