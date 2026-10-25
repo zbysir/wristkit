@@ -207,7 +207,6 @@ func (a *Apps) Install(path string, progress func(i, n int)) (*Manifest, error) 
 	if err != nil {
 		return nil, err
 	}
-	sum := md5.Sum(data)
 	slog.Info("安装", "package", m.Package, "bytes", len(data))
 
 	pkt := packet(vp.ThirdpartyApp_PREPARE_INSTALL_APP)
@@ -222,50 +221,10 @@ func (a *Apps) Install(path string, progress func(i, n int)) (*Manifest, error) 
 		return nil, fmt.Errorf("手环拒绝安装：%s", st)
 	}
 
-	massPkt := &vp.VelaPacket{Type: proto.Uint32(typeMass), Id: proto.Uint32(uint32(vp.Mass_PREPARE)), Mass: &vp.Mass{
-		Payload: &vp.Mass_PrepareRequest{PrepareRequest: &vp.PrepareRequest{
-			DataType: proto.Uint32(massDataTypeApp), DataId: sum[:], DataLength: proto.Uint32(uint32(len(data))),
-		}},
-	}}
-	resp, err = a.request(massPkt, 10*time.Second)
-	if err != nil {
-		return nil, err
-	}
-	mp := resp.GetMass().GetPrepareResponse()
-	if mp.GetPrepareStatus() != vp.PrepareStatus_READY {
-		return nil, fmt.Errorf("手环拒绝接收文件：%s", mp.GetPrepareStatus())
-	}
-	if mp.GetRemainedDataLength() > 0 {
-		slog.Warn("手环说已有部分数据（断点续传），这里不支持，仍发整个文件", "bytes", mp.GetRemainedDataLength())
-	}
-	sliceLen := int(mp.GetExpectedSliceLength())
-	if sliceLen == 0 {
-		sliceLen = 244
-	}
-
-	// 内层：00 | 类型 | md5 | 长度 | 文件 | crc32(前面全部)
-	inner := append([]byte{0, massDataTypeApp}, sum[:]...)
-	inner = binary.LittleEndian.AppendUint32(inner, uint32(len(data)))
-	inner = append(inner, data...)
-	inner = binary.LittleEndian.AppendUint32(inner, crc32.ChecksumIEEE(inner))
-	frag := sliceLen - 6
-	total := (len(inner) + frag - 1) / frag
-
 	result := a.dev.Expect(typeThirdpartyApp, uint32(vp.ThirdpartyApp_REPORT_INSTALL_RESULT)) // 先挂监听，结果可能来得很快
 	defer a.dev.dropWaiter(result)
-	for i := range total {
-		// 分片走 mass 通道明文：02 01 | 总片数 | 序号(从 1 起) | 数据
-		chunk := inner[i*frag : min((i+1)*frag, len(inner))]
-		body := []byte{chMass, opPlain}
-		body = binary.LittleEndian.AppendUint16(body, uint16(total))
-		body = binary.LittleEndian.AppendUint16(body, uint16(i+1))
-		body = append(body, chunk...)
-		if err := a.dev.SendData(body, true, 30*time.Second); err != nil {
-			return nil, err
-		}
-		if progress != nil {
-			progress(i+1, total)
-		}
+	if err := a.dev.massSend(massDataTypeApp, data, progress); err != nil {
+		return nil, err
 	}
 
 	select {
@@ -318,4 +277,60 @@ func (a *Apps) onPacket(raw []byte) {
 	default:
 		slog.Debug("快应用消息", "id", pkt.GetId())
 	}
+}
+
+// massSend 走大文件通道把 data 传给手环（装快应用、装表盘）；progress(i, n) 在每个分片被确认后调用。
+func (d *Device) massSend(dataType byte, data []byte, progress func(i, n int)) error {
+	sum := md5.Sum(data)
+	massPkt := &vp.VelaPacket{Type: proto.Uint32(typeMass), Id: proto.Uint32(uint32(vp.Mass_PREPARE)), Mass: &vp.Mass{
+		Payload: &vp.Mass_PrepareRequest{PrepareRequest: &vp.PrepareRequest{
+			DataType: proto.Uint32(uint32(dataType)), DataId: sum[:], DataLength: proto.Uint32(uint32(len(data))),
+		}},
+	}}
+	raw, err := proto.Marshal(massPkt)
+	if err != nil {
+		return err
+	}
+	raw, err = d.Request(typeMass, uint32(vp.Mass_PREPARE), raw, uint32(vp.Mass_PREPARE), 10*time.Second)
+	if err != nil {
+		return err
+	}
+	resp := &vp.VelaPacket{}
+	if err := proto.Unmarshal(raw, resp); err != nil {
+		return err
+	}
+	mp := resp.GetMass().GetPrepareResponse()
+	if mp.GetPrepareStatus() != vp.PrepareStatus_READY {
+		return fmt.Errorf("手环拒绝接收文件：%s", mp.GetPrepareStatus())
+	}
+	if mp.GetRemainedDataLength() > 0 {
+		slog.Warn("手环说已有部分数据（断点续传），这里不支持，仍发整个文件", "bytes", mp.GetRemainedDataLength())
+	}
+	sliceLen := int(mp.GetExpectedSliceLength())
+	if sliceLen == 0 {
+		sliceLen = 244
+	}
+
+	// 内层：00 | 类型 | md5 | 长度 | 文件 | crc32(前面全部)
+	inner := append([]byte{0, dataType}, sum[:]...)
+	inner = binary.LittleEndian.AppendUint32(inner, uint32(len(data)))
+	inner = append(inner, data...)
+	inner = binary.LittleEndian.AppendUint32(inner, crc32.ChecksumIEEE(inner))
+	frag := sliceLen - 6
+	total := (len(inner) + frag - 1) / frag
+	for i := range total {
+		// 分片走 mass 通道明文：02 01 | 总片数 | 序号(从 1 起) | 数据
+		chunk := inner[i*frag : min((i+1)*frag, len(inner))]
+		body := []byte{chMass, opPlain}
+		body = binary.LittleEndian.AppendUint16(body, uint16(total))
+		body = binary.LittleEndian.AppendUint16(body, uint16(i+1))
+		body = append(body, chunk...)
+		if err := d.SendData(body, true, 30*time.Second); err != nil {
+			return err
+		}
+		if progress != nil {
+			progress(i+1, total)
+		}
+	}
+	return nil
 }

@@ -3,6 +3,10 @@
 //	miband app                 常驻：跑 app 在 Mac 上的部分、给手环上开着的 app 推数据（Agent 猫会在 agent 跑完/卡住时提醒）
 //	miband notify 标题 [正文]   发一条通知
 //	miband battery             看手环电量
+//	miband faces               列出手环上的表盘
+//	miband face-install <文件>  安装表盘（.face / .bin）并设为当前
+//	miband face-set <id>       切换到某个表盘
+//	miband face-remove <id>    删除表盘
 //	miband apps                列出手环上的第三方快应用
 //	miband install <rpk>       安装快应用并打开
 //	miband pack <目录> <rpk>     把 wristkit app 目录（manifest.json + index.ux）或快应用源码目录（manifest.json、app.ux、pages/…）
@@ -43,7 +47,7 @@ func run() int {
 	configPath := flag.String("config", "", "配置文件路径（默认找 ./config.json，再找可执行文件上一级目录）")
 	verbose := flag.Bool("v", false, "打印调试日志")
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "用法: miband [-config path] [-v] <app|notify|battery|apps|install|remove|launch|pack|key> ...")
+		fmt.Fprintln(os.Stderr, "用法: miband [-config path] [-v] <app|notify|battery|faces|face-install|face-set|face-remove|apps|install|remove|launch|pack|key> ...")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -120,6 +124,45 @@ func run() int {
 			}
 			fmt.Printf("电量 %d%%，充电中: %v\n", b.Level, b.Charging)
 			return nil
+		})
+	case "faces":
+		err = withDevice(ctx, cfg, func(dev *xiaomi.Device, _ *xiaomi.Apps) error {
+			list, err := dev.Watchfaces()
+			for _, f := range list {
+				mark := " "
+				if f.Active {
+					mark = "*"
+				}
+				fmt.Printf("%s %-12s 可删:%-5v %s\n", mark, f.ID, f.CanDelete, f.Name)
+			}
+			return err
+		})
+	case "face-install":
+		if len(args) < 2 {
+			fatal(errors.New("用法: miband face-install <文件>"))
+		}
+		data, rerr := os.ReadFile(args[1])
+		if rerr != nil {
+			fatal(rerr)
+		}
+		err = withDevice(ctx, cfg, func(dev *xiaomi.Device, _ *xiaomi.Apps) error {
+			id, err := dev.InstallWatchface(data, func(i, n int) { fmt.Printf("\r传输 %d/%d", i, n) })
+			fmt.Println()
+			if err != nil {
+				return err
+			}
+			fmt.Println("已安装并切换到表盘:", id)
+			return nil
+		})
+	case "face-set", "face-remove":
+		if len(args) < 2 {
+			fatal(fmt.Errorf("用法: miband %s <id>", args[0]))
+		}
+		err = withDevice(ctx, cfg, func(dev *xiaomi.Device, _ *xiaomi.Apps) error {
+			if args[0] == "face-set" {
+				return dev.SetWatchface(args[1])
+			}
+			return dev.DeleteWatchface(args[1])
 		})
 	case "apps":
 		err = withDevice(ctx, cfg, func(_ *xiaomi.Device, apps *xiaomi.Apps) error {
