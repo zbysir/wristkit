@@ -220,4 +220,4 @@ App 左边的预览跑的是装到手环上的同一份编译好的代码，数�
 - 编译（`server/internal/ux`）：`.ux` 编成手环上快应用框架能直接加载的 JS（模板变成 `aiot.__ce__` 这些调用，样式变成对象，脚本用 esbuild 打包），格式和小米的 aiot-toolkit 编出来的一样（测试里和它的结果比对，见 `tools/ux-oracle.sh`）。
 - 打包（`server/internal/quickapp`、`server/internal/rpk`）：manifest、编好的 JS、图片打成 rpk，用调试证书签名。
 - 宿主（`server/internal/bandapp`）：管理所有 app，跑 `server.js`，按包名给手环上开着的 app 推数据；`wristkit.js` 是编进每个 app 的手环端运行时（连 Mac、收数据、缓存）。
-- 预览（`server/app/frontend/src/uxrt.ts`）：在浏览器里模拟快应用框架，跑同一份编译好的 JS。
+- 预览（`server/app/frontend/src/uxrt.ts`）：在浏览器里模拟快应用框架，跑同一份编译好的 JS。怎么模拟的、和真机差在哪见 [preview.md](preview.md)。
