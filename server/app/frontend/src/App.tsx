@@ -279,37 +279,48 @@ function AppsCard({state, run, onSelect}: { state: AppState, run: Run, onSelect:
                 {list.map(a => {
                     const st = bandStatus(state, a)
                     const busy = state.installing === a.name
+                    const needInstall = !st.installed || st.outdated
+                    const install = (variant: 'default' | 'ghost') => (
+                        <Button size="sm" variant={variant} disabled={off || !!a.error}
+                                onClick={() => run(!st.installed ? '安装' : '更新', () => InstallApp(a.name))}>
+                            {busy ? `${Math.round(state.installProgress * 100)}%` : !st.installed ? '装到手环' : st.outdated ? '更新' : '重新安装'}
+                        </Button>
+                    )
                     return (
-                        <div key={a.name} className="flex flex-col gap-2">
-                            <Row title={<span className="flex items-center gap-2">{a.title}{a.foreground && <Badge variant="secondary">手环上开着</Badge>}</span>}
-                                 hint={<>{a.source ? <SourceLink url={a.source}/> : a.builtin ? '内置' : shortPath(a.dir)}{' · ' + st.text}</>}>
-                                <div className="flex gap-2">
-                                    {a.needGrant && <Button size="sm" onClick={() => run('允许', () => AllowApp(a.name, a.permKey))}>允许</Button>}
-                                    {!a.builtin && !a.needGrant && (a.permissions?.length ?? 0) > 0 &&
-                                        <Button variant="outline" size="sm" onClick={() => run('收回权限', () => RevokeApp(a.name))}>收回权限</Button>}
-                                    <Button variant="ghost" size="sm" onClick={() => onSelect(a.name)}>预览</Button>
-                                    {st.installed && <Button variant="outline" size="sm" disabled={off}
-                                                             onClick={() => run('打开', () => OpenApp(a.name))}>在手环上打开</Button>}
-                                    <Button size="sm" variant={st.installed && !st.outdated ? 'ghost' : 'default'} disabled={off || !!a.error}
-                                            onClick={() => run(!st.installed ? '安装' : '更新', () => InstallApp(a.name))}>
-                                        {busy ? `${Math.round(state.installProgress * 100)}%` : !st.installed ? '装到手环' : st.outdated ? '更新' : '重新安装'}
-                                    </Button>
-                                    {a.builtin && <Button variant="outline" size="sm" title="把源码复制到 app 目录，改了就替换内置的这个"
-                                                          onClick={() => run('复制', () => CopyBuiltin(a.name))}>复制出来改</Button>}
-                                    {a.source && (newer[a.name]
-                                        ? <Button variant="outline" size="sm" title="从 GitHub 下载新版本，下好了再点「更新」装到手环"
-                                                  onClick={() => run('下载新版本', async () => {
-                                                      await UpdateApp(a.name)
-                                                      setNewer(m => ({...m, [a.name]: false}))
-                                                  })}>下载新版本</Button>
-                                        : <Button variant="ghost" size="sm" onClick={() => check(a.name)}>{newer[a.name] === false ? '已是最新' : '检查新版本'}</Button>)}
-                                    {!a.builtin && (deleting === a.name
-                                        ? <Button variant="destructive" size="sm" title={st.installed ? '手环上装的也一起卸载' : undefined}
-                                                  onClick={() => remove(a, st.installed)}>确定删除？</Button>
-                                        : <Button variant="ghost" size="sm" title="移到废纸篓"
-                                                  onClick={() => setDeleting(a.name)}>删除</Button>)}
+                        <div key={a.name} className="flex flex-col gap-2 border-t pt-4 first:border-t-0 first:pt-0">
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                                    {a.title}{a.foreground && <Badge variant="secondary">手环上开着</Badge>}
                                 </div>
-                            </Row>
+                                <div className="mt-0.5 text-xs text-muted-foreground">
+                                    {a.source ? <SourceLink url={a.source}/> : a.builtin ? '内置' : shortPath(a.dir)}{' · ' + st.text}
+                                </div>
+                            </div>
+                            {/* 主要操作在前、有底色或描边；其余是无边框的次要操作 */}
+                            <div className="flex flex-wrap items-center gap-1">
+                                {a.needGrant && <Button size="sm" onClick={() => run('允许', () => AllowApp(a.name, a.permKey))}>允许</Button>}
+                                {needInstall && install('default')}
+                                {st.installed && <Button variant="outline" size="sm" disabled={off}
+                                                         onClick={() => run('打开', () => OpenApp(a.name))}>在手环上打开</Button>}
+                                <Button variant="ghost" size="sm" onClick={() => onSelect(a.name)}>预览</Button>
+                                {!needInstall && install('ghost')}
+                                {a.builtin && <Button variant="ghost" size="sm" title="把源码复制到 app 目录，改了就替换内置的这个"
+                                                      onClick={() => run('复制', () => CopyBuiltin(a.name))}>复制出来改</Button>}
+                                {a.source && (newer[a.name]
+                                    ? <Button variant="outline" size="sm" title="从 GitHub 下载新版本，下好了再点「更新」装到手环"
+                                              onClick={() => run('下载新版本', async () => {
+                                                  await UpdateApp(a.name)
+                                                  setNewer(m => ({...m, [a.name]: false}))
+                                              })}>下载新版本</Button>
+                                    : <Button variant="ghost" size="sm" onClick={() => check(a.name)}>{newer[a.name] === false ? '已是最新' : '检查新版本'}</Button>)}
+                                {!a.builtin && !a.needGrant && (a.permissions?.length ?? 0) > 0 &&
+                                    <Button variant="ghost" size="sm" onClick={() => run('收回权限', () => RevokeApp(a.name))}>收回权限</Button>}
+                                {!a.builtin && (deleting === a.name
+                                    ? <Button variant="destructive" size="sm" title={st.installed ? '手环上装的也一起卸载' : undefined}
+                                              onClick={() => remove(a, st.installed)}>确定删除？</Button>
+                                    : <Button variant="ghost" size="sm" title="移到废纸篓"
+                                              onClick={() => setDeleting(a.name)}>删除</Button>)}
+                            </div>
                             {busy && (
                                 <div className="h-1 overflow-hidden rounded-full bg-muted">
                                     <div className="h-full bg-primary transition-all" style={{width: `${state.installProgress * 100}%`}}/>
@@ -325,15 +336,17 @@ function AppsCard({state, run, onSelect}: { state: AppState, run: Run, onSelect:
                     )
                 })}
                 {(state.legacy ?? []).map(pkg => (
-                    <Row key={pkg} title={<>{LEGACY_NAMES[pkg] ?? pkg} <span className="text-muted-foreground">（旧版）</span></>}
+                    <div key={pkg} className="border-t pt-4 first:border-t-0 first:pt-0">
+                    <Row title={<>{LEGACY_NAMES[pkg] ?? pkg} <span className="text-muted-foreground">（旧版）</span></>}
                          hint="以前版本装的，已经不用了，可以卸载">
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" disabled={off} onClick={() => run('打开', () => Launch(pkg))}>在手环上打开</Button>
                             <Button variant="destructive" size="sm" disabled={off} onClick={() => run('卸载', () => Uninstall(pkg))}>卸载</Button>
                         </div>
                     </Row>
+                    </div>
                 ))}
-                <DownloadRow run={run}/>
+                <div className="border-t pt-4 first:border-t-0 first:pt-0"><DownloadRow run={run}/></div>
                 <div>
                     <Button variant="outline" size="sm" onClick={() => run('打开 app 目录', OpenAppDir)}><FolderOpen/>打开 app 目录</Button>
                 </div>
