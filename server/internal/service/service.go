@@ -622,7 +622,11 @@ func (s *Service) InstallApp(name string, progress func(i, n int)) error {
 		return err
 	}
 	f.Close()
-	return s.Install(f.Name(), progress)
+	if err := s.Install(f.Name(), progress); err != nil {
+		return err
+	}
+	s.host.ClearRunErr(name)
+	return nil
 }
 
 // Remove 卸载手环上的快应用（用来清掉旧版）。

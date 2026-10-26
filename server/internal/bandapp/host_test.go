@@ -511,7 +511,7 @@ func TestUserAppErrorsAndReload(t *testing.T) {
 		"index.ux":      `<template><div><text>{{a +}}</text></div></template>`,
 	})
 	h, _ := startHost(t, nil, dir)
-	if info := h.Apps(); len(info) != 1 || !strings.Contains(info[0].Error, "编译失败") {
+	if info := h.Apps(); len(info) != 1 || !strings.Contains(info[0].Error, "编译失败") || info[0].BuildError == "" {
 		t.Fatalf("界面上应该看到编译错误：%v", info)
 	}
 	v0 := h.Apps()[0].Version
@@ -529,8 +529,13 @@ func TestUserAppErrorsAndReload(t *testing.T) {
 	}
 	// 手环上报的运行错误显示在界面上
 	h.HandleMessage(info.Package, map[string]any{"t": "log", "level": "error", "msg": "boom"})
-	if h.Apps()[0].Error != "boom" {
-		t.Fatalf("运行错误没记下来：%v", h.Apps()[0])
+	if info := h.Apps()[0]; info.Error != "boom" || info.BuildError != "" {
+		t.Fatalf("运行错误没记下来，或者被当成了编译错误（会挡住安装）：%+v", info)
+	}
+	// 装了新版本，旧版本报的错就清掉
+	h.ClearRunErr("hello")
+	if e := h.Apps()[0].Error; e != "" {
+		t.Fatalf("运行错误没清掉：%s", e)
 	}
 }
 

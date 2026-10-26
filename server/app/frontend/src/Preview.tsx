@@ -163,7 +163,7 @@ export function Preview({state, run, app, onSelect}: {
                             <Watch/>{app.foreground ? '手环上正开着' : '在手环上打开'}
                         </Button>
                     ) : (
-                        <Button className="flex-1" disabled={!state.connected || !!state.installing || !!app.error}
+                        <Button className="flex-1" disabled={!state.connected || !!state.installing || !!app.buildError}
                                 onClick={() => run(st.installed ? '更新' : '安装', () => InstallApp(app.name))}>
                             <Download/>{state.installing === app.name ? `${Math.round(state.installProgress * 100)}%` : st.installed ? '更新到手环' : '装到手环'}
                         </Button>

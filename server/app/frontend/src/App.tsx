@@ -281,7 +281,7 @@ function AppsCard({state, run, onSelect}: { state: AppState, run: Run, onSelect:
                     const busy = state.installing === a.name
                     const needInstall = !st.installed || st.outdated
                     const install = (variant: 'default' | 'ghost') => (
-                        <Button size="sm" variant={variant} disabled={off || !!a.error}
+                        <Button size="sm" variant={variant} disabled={off || !!a.buildError}
                                 onClick={() => run(!st.installed ? '安装' : '更新', () => InstallApp(a.name))}>
                             {busy ? `${Math.round(state.installProgress * 100)}%` : !st.installed ? '装到手环' : st.outdated ? '更新' : '重新安装'}
                         </Button>

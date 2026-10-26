@@ -496,6 +496,17 @@ func (h *Host) HandleMessage(pkg string, m map[string]any) {
 	}
 }
 
+// ClearRunErr 清掉手环上报的运行错误：装了新版本以后，旧版本报的错不该留着。
+func (h *Host) ClearRunErr(app string) {
+	h.mu.Lock()
+	_, had := h.runErr[app]
+	delete(h.runErr, app)
+	h.mu.Unlock()
+	if had {
+		h.changed()
+	}
+}
+
 func (h *Host) foregroundChanged(app string, on bool) {
 	if h.OnForeground != nil {
 		h.OnForeground(app, on)
@@ -637,8 +648,9 @@ type Info struct {
 	Title       string         `json:"title"`
 	Builtin     bool           `json:"builtin"`
 	Dir         string         `json:"dir"`
-	Source      string         `json:"source"` // 从 GitHub 下的：来源链接
-	Error       string         `json:"error"`
+	Source      string         `json:"source"`     // 从 GitHub 下的：来源链接
+	Error       string         `json:"error"`      // 给人看的错误：编译错误，或者手环、server.js 上报的运行错误
+	BuildError  string         `json:"buildError"` // 编译错误：有这个就装不了
 	Package     string         `json:"package"`    // 手环上的包名
 	Version     int            `json:"version"`    // 安装包的版本号，和手环上装的不一样就要更新
 	Foreground  bool           `json:"foreground"` // 手环上正开着
@@ -664,7 +676,7 @@ func (h *Host) Apps() []Info {
 		}
 		hasServer := a.ServerCode != ""
 		out[i] = Info{
-			Name: a.Name, Title: a.Title, Builtin: a.Builtin, Dir: a.Dir, Source: a.Source, Error: err, Package: a.Package, Version: a.Version,
+			Name: a.Name, Title: a.Title, Builtin: a.Builtin, Dir: a.Dir, Source: a.Source, Error: err, BuildError: a.Err, Package: a.Package, Version: a.Version,
 			Foreground: h.foreground[a.Name], HasServer: hasServer, Permissions: a.Permissions.Describe(), PermKey: a.Permissions.Key(),
 			NeedGrant: hasServer && !h.allowedLocked(a),
 			Settings:  a.Settings, Config: h.configOf(a),

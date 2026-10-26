@@ -40,7 +40,8 @@ export interface AppInfo {
     builtin: boolean
     dir: string
     source: string // 从 GitHub 下的：来源链接
-    error: string
+    error: string // 给人看的错误：编译错误，或者运行时报的错
+    buildError: string // 编译错误：有这个就装不了
     package: string // 手环上的包名
     version: number // 安装包的版本号，和手环上装的不一样就要更新
     foreground: boolean // 手环上正开着
