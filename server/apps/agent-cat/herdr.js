@@ -201,12 +201,14 @@ function poll() {
       addDone(done, now)
       publishStats(now)
     }
-    alert(changes(prev, agents).concat(impatient(agents, now)))
   }
+  const events = prev ? changes(prev, agents).concat(impatient(agents, now)) : []
   prev = {}
   for (const a of agents) prev[a.id] = a.status
   blocked = agents.some((a) => a.status === 'blocked')
+  // 先推列表，过一会儿再提醒：通知先到的话，手环处理通知时后面的消息会堵一秒多，猫换动作就比通知晚好几秒
   publish('agents', agents)
+  setTimeout(() => alert(events), 500)
   setTimeout(poll, POLL_MS)
 }
 
