@@ -1,10 +1,11 @@
-// Agent 猫的 Mac 端（server.js 引入）：每 3 秒跑一次 herdr agent list，把 agent 状态推给手环；
+// Agent 猫的 Mac 端（server.js 引入）：每 3 秒读一次 herdr 的 agent 和 gerdr 的会话（gerdr.js），合起来把 agent 状态推给手环；
 // 数每天完成了几个任务（小鱼干），agent 跑完、卡住时提醒，卡住时可以保持手环亮屏。
-// 没装 herdr 的用户：agent 列表是空的，猫一直睡觉，不报错。
+// herdr、gerdr 都没装的用户：agent 列表是空的，猫一直睡觉，不报错。
 import { publish, exec, storage, getConfig, onConfig, notifyBand, wakeBand, readFile, home } from 'miband/server'
+import { listSessions } from './gerdr'
 
 const POLL_MS = 3000
-const NO_HERDR_POLL_MS = 30000 // 没装 herdr 时别一直试
+const MISSING_RETRY_MS = 30000 // 没装 herdr / gerdr、没开时，隔这么久再试，别一直试
 const STATUS_TEXT = { done: '完成', idle: '完成', blocked: '等你处理', working: '开始跑' }
 
 let config = getConfig()
@@ -14,10 +15,12 @@ onConfig((c) => (config = c))
 const alertMode = () => config.alert || 'notify'
 const impatientMin = () => (config.impatientMin == null ? 5 : config.impatientMin)
 
-// ---------- 读 herdr ----------
+// ---------- 读 herdr、gerdr ----------
+
+const project = (cwd) => (cwd || '').replace(/\/+$/, '').split('/').pop()
 
 // 返回 agent 列表；没装 herdr、herdr 没在跑时返回 null
-function listAgents() {
+function listHerdr() {
   let r
   try {
     r = exec('herdr', ['agent', 'list'])
@@ -29,18 +32,39 @@ function listAgents() {
     return null
   }
   try {
-    return JSON.parse(r.stdout).result.agents || []
+    const agents = JSON.parse(r.stdout).result.agents || []
+    // seq：herdr 里状态变化的序号，越大越近（排序用：同一档里最近变过状态的在前）
+    return agents.map((a) => ({ id: a.pane_id, agent: a.agent, project: project(a.cwd), title: a.name || a.terminal_title_stripped || '', status: a.agent_status, seq: a.state_change_seq || 0 }))
   } catch (e) {
     console.warn('解析 herdr 输出失败：' + e)
     return null
   }
 }
 
-const project = (cwd) => (cwd || '').replace(/\/+$/, '').split('/').pop()
+// 每个来源读不到时，过一会儿再试；读到了每轮都读
+const sources = [
+  { list: listHerdr, retryAt: 0 },
+  { list: listSessions, retryAt: 0 },
+]
 
-// label 用在通知正文里：项目 · 任务标题
+// 两边合起来；都读不到返回 null
+function listAgents(now) {
+  let out = null
+  for (const src of sources) {
+    if (now < src.retryAt) continue
+    const agents = src.list()
+    if (agents === null) {
+      src.retryAt = now + MISSING_RETRY_MS
+      continue
+    }
+    out = (out || []).concat(agents)
+  }
+  return out
+}
+
+// label 用在通知正文里：项目 · 等你处理的是什么（gerdr 给的问题、要批准的命令），没有就是任务标题
 function label(a) {
-  const title = a.title || a.id
+  const title = a.detail || a.title || a.id
   return a.project && a.project !== '.' ? `${a.project} · ${title}` : title
 }
 
@@ -182,18 +206,15 @@ let prev = null // id → 上一轮的状态；null 表示还没读到过
 
 function poll() {
   const now = Date.now()
-  const raw = listAgents()
+  const raw = listAgents(now)
   publishStats(now) // 过了零点「今天」也要换
   if (raw === null) {
     prev = null
     blocked = false
     publish('agents', [])
-    return setTimeout(poll, NO_HERDR_POLL_MS)
+    return setTimeout(poll, POLL_MS)
   }
-  const agents = raw
-    // seq：herdr 里状态变化的序号，越大越近（排序用：同一档里最近变过状态的在前）
-    .map((a) => ({ id: a.pane_id, agent: a.agent, project: project(a.cwd), title: a.name || a.terminal_title_stripped || '', status: a.agent_status, seq: a.state_change_seq || 0 }))
-    .sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)) // 顺序固定，内容没变就不会重推
+  const agents = raw.sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)) // 顺序固定，内容没变就不会重推
   track(agents, prev === null, now)
   if (prev) {
     const done = agents.filter((a) => prev[a.id] !== undefined && finished(prev[a.id], a)).length

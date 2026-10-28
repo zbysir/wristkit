@@ -373,14 +373,20 @@ func TestAgentCat(t *testing.T) {
 	}
 	b.store("agents", agentList("blocked", "working", "idle"))
 	tree := b.waitText("1 个等你处理！")
-	b.waitText("api|1/2|任务api")
+	b.waitText("任务api|1/2|api")
 	// 点气泡换下一个：卡住的 > 在跑的
 	bubble := findNode(tree, func(n map[string]any) bool { return hasClass(n, "bubble") })
 	if bubble == nil || bubble["ev"] == nil {
 		t.Fatalf("没找到气泡：%v", tree)
 	}
 	b.click(bubble["ev"].(string))
-	b.waitText("web|2/2|任务web")
+	b.waitText("任务web|2/2|web")
+	// gerdr 给了在等什么：大字显示它，小字是项目
+	list := agentList("blocked", "working")
+	list[0]["detail"] = "午饭吃什么？（面条 / 米饭）"
+	b.store("agents", list)
+	b.click(bubble["ev"].(string))
+	b.waitText("午饭吃什么？（面条 / 米饭）|1/2|api")
 	// 配置：换猫
 	b.store("config", map[string]any{"skin": "gray"})
 	sprite = findNode(b.tree(), func(n map[string]any) bool { return hasClass(n, "sprite") })

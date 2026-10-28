@@ -5,7 +5,8 @@
   "permissions": {
     "notify": true,
     "exec": [
-      "herdr"
+      "herdr",
+      "gerdr"
     ],
     "read": [
       "~/.codex/sessions",

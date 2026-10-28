@@ -178,7 +178,7 @@ App 有时会让 app 马上刷新数据（比如打开「显示 Claude Code 额�
 
 **权限**：`manifest.json` 的 `permissions` 里声明 `notify`（发通知、点亮手环）、`read`（能读的目录，可以用 `~`）、`exec`（能执行的命令名，如 `["herdr"]`）。用户 app 要了权限的，要在 App 里点「允许」，`server.js` 才会跑；权限改了要重新允许。没要权限的 `server.js` 直接跑。内置 app 不用问。
 
-例子：Agent 猫的 `server/apps/agent-cat/herdr.js` 每 3 秒跑一次 `herdr agent list`，推 agent 状态、记每天完成了几个、跑完和卡住时提醒；`server.js` 读 Claude Code 和 Codex 的额度，`publish('usage', …)` 给手环。
+例子：Agent 猫的 `server/apps/agent-cat/herdr.js` 每 3 秒跑一次 `herdr agent list`、`gerdr session list`（`gerdr.js`），合起来推 agent 状态、记每天完成了几个、跑完和卡住时提醒；`server.js` 读 Claude Code 和 Codex 的额度，`publish('usage', …)` 给手环。
 
 ## 在 Mac 上预览和调试
 

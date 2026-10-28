@@ -17,10 +17,10 @@
         </div>
         <div if="{{bubble.show}}" class="bubble" style="border-color: {{bubble.color}}" @click="next">
           <div class="bubble-row">
-            <text class="bubble-project">{{bubble.project}}</text>
+            <text class="bubble-main">{{bubble.main}}</text>
             <text if="{{bubble.count}}" class="bubble-count">{{bubble.count}}</text>
           </div>
-          <text class="bubble-title">{{bubble.title}}</text>
+          <text class="bubble-sub">{{bubble.sub}}</text>
         </div>
         <div else class="bubble-empty"></div>
         <div class="status">
@@ -94,9 +94,9 @@
 <script>
 // Agent 猫：一只像素猫代表所有 agent 的整体状态。
 // 有 agent 卡住了它举牌，卡太久（默认 5 分钟）就着急；刚跑完一个就庆祝 8 秒，有在跑的就敲笔记本，都空闲时睡觉。
-// 下面的气泡显示一个需要关注的 agent，点猫或气泡换下一个。右下角的小鱼干是今天完成了几个任务，左边是今天 Claude Code 花了多少钱。
+// 下面的气泡显示一个需要关注的 agent：大字是它在问什么（gerdr 给的）或任务标题，小字是项目；点猫或气泡换下一个。右下角的小鱼干是今天完成了几个任务，左边是今天 Claude Code 花了多少钱。
 // 往上翻（或点小鱼干）是「今日」：最近 7 天的完成数 / 花费，和全部额度。
-// 数据都是 Mac 上的 server.js 推来的（agents、stats 在 herdr.js，cost 在 cost.js，usage 在 server.js），到了调 onStore。
+// 数据都是 Mac 上的 server.js 推来的（agents、stats 在 herdr.js 和 gerdr.js，cost 在 cost.js，usage 在 server.js），到了调 onStore。
 import device from '@system.device'
 import vibrator from '@system.vibrator'
 
@@ -148,7 +148,7 @@ export default {
     quota: { show: false, name: '', w: 4, color: '#3ddc84', text: '' },
     frames: [],
     frameMs: '1200ms',
-    bubble: { show: false, project: '', title: '', count: '', color: '#5c6068' },
+    bubble: { show: false, main: '', sub: '', count: '', color: '#5c6068' },
     counts: { blocked: 0, working: 0, done: 0, idle: 0 },
     costText: '',
     costColor: '#5c6068',
@@ -343,8 +343,9 @@ export default {
       return
     }
     this.bubble.show = true
-    this.bubble.project = f.project || f.agent || '?'
-    this.bubble.title = f.title || ''
+    const project = f.project || f.agent || '?'
+    this.bubble.main = f.detail || f.title || project
+    this.bubble.sub = this.bubble.main === project ? '' : project
     this.bubble.count = pool.length > 1 ? (index + 1) + '/' + pool.length : ''
     this.bubble.color = COLOR[f.status] || COLOR.unknown
   },
@@ -442,9 +443,9 @@ export default {
 .bubble { width: 192px; height: 62px; margin-top: 6px; padding-top: 6px; padding-bottom: 6px; padding-left: 10px; padding-right: 10px; border-radius: 14px; background-color: #16191f; flex-direction: column; border-width: 2px; }
 .bubble-empty { width: 192px; height: 62px; margin-top: 6px; }
 .bubble-row { flex-direction: row; align-items: center; }
-.bubble-project { flex: 1; font-size: 14px; font-weight: bold; lines: 1; text-overflow: ellipsis; color: #ffffff; }
+.bubble-main { flex: 1; font-size: 14px; font-weight: bold; lines: 1; text-overflow: ellipsis; color: #ffffff; }
 .bubble-count { margin-left: 6px; font-size: 11px; color: #8a8f98; }
-.bubble-title { font-size: 12px; color: #8a8f98; lines: 1; text-overflow: ellipsis; }
+.bubble-sub { font-size: 12px; color: #8a8f98; lines: 1; text-overflow: ellipsis; }
 .status { width: 192px; height: 22px; margin-top: 8px; flex-direction: row; align-items: center; }
 .dot-group { flex-direction: row; align-items: center; margin-right: 8px; }
 .dot { width: 8px; height: 8px; border-radius: 4px; margin-right: 4px; }

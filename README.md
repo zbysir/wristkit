@@ -4,7 +4,7 @@
 
 在 Mac 上给小米手环写 app、装 app。Mac 通过蓝牙直连手环（不经过手机）；app 用快应用的原生写法（`.ux`，像 Vue），App 自己编译、打包、装到手环上，不用装 Node 和小米的开发工具。app 在手环上原生运行，点击、翻页都很快；要读 Mac 上的数据，app 再带一段在 Mac 上跑的代码，把数据推给手环。
 
-自带的 app 把 AI agent（[herdr](https://herdr.dev) 管理的 Claude Code、Codex 等）的状态放到手腕上：
+自带的 app 把 AI agent（[herdr](https://herdr.dev) 或 gerdr 里开着的 Claude Code、Codex 等）的状态放到手腕上：
 
 - **Agent 猫**：一只像素猫代表所有 agent 的整体状态。有 agent 卡住了它举牌，卡太久就着急；跑完一个就庆祝，有在跑的就敲笔记本，都空闲时睡觉。标题下面是 Claude Code / Codex 的额度，右下角的小鱼干是今天完成了几个任务。往上翻是「今日」：最近 7 天的完成数和全部额度。
 - **提醒**：agent 跑完、卡住时手环发通知震一下，或者只亮屏；有 agent 等你回答时还可以让手环一直亮着。
@@ -18,7 +18,7 @@
 - 一台 Mac。
 - 小米手环。实测可用的是**小米手环 10 Pro**、**小米手环 9 Pro**；其它跑 Xiaomi Vela 的手环 / 手表理论上可以，没试过。
 - 第一次绑定时借用一下手机（小米运动健康），之后就不用了。
-- 想看 agent 状态的话，装 [herdr](https://herdr.dev)。
+- 想看 agent 状态的话，装 [herdr](https://herdr.dev) 或 gerdr，两个都装了就合在一起显示。
 
 ## 开始使用
 
@@ -141,7 +141,7 @@ make test       # 跑 Go 测试（app 的测试会在 goja 里模拟手环，跑
   - `bt/`：经典蓝牙 RFCOMM 和 BLE（cgo 调 macOS 的蓝牙框架）。
   - `usage/`：接管 Claude Code 状态栏拿额度的开关。
   - `micloud/`：扫码登录小米账号、拉手环密钥。
-- `server/apps/`：内置 app（Agent 猫：手环上的界面 + Mac 上读 herdr、额度、提醒；橘黑猫：只在手环上跑的电子宠物，帧由 `tools/gen_tigercat.py` 生成），打包进 App。
+- `server/apps/`：内置 app（Agent 猫：手环上的界面 + Mac 上读 herdr 和 gerdr、额度、提醒；橘黑猫：只在手环上跑的电子宠物，帧由 `tools/gen_tigercat.py` 生成），打包进 App。
 - `server/app/frontend/src/uxrt.ts`：App 里的预览，在浏览器里模拟快应用框架，跑编好的 app。
 - `tools/gen_pet.py`、`tools/gen_fish.py`：逐像素手绘猫和小鱼干（怎么画见 [docs/pixel-cat.md](docs/pixel-cat.md)）。
 - `spike/`、`server/cmd/spike/`：真机实验的代码（[docs/render-spike.md](docs/render-spike.md)）。
