@@ -58,7 +58,8 @@ const UNITLESS = new Set(['flex', 'flexGrow', 'flexShrink', 'opacity', 'fontWeig
 
 // 手环快应用的布局默认值：只有 flex，div 默认横排，边框写了宽度和颜色就是实线
 const BOX_BASE = 'display:flex;flex-direction:row;box-sizing:border-box;position:relative;min-width:0;min-height:0;border-style:solid;border-width:0;flex-shrink:1;'
-const TEXT_BASE = 'display:block;box-sizing:border-box;border-style:solid;border-width:0;flex-shrink:1;min-width:0;white-space:pre-wrap;word-break:break-all;color:#ffffff;font-size:14px;'
+// 文字默认不收缩：手环上一行放不下时不会把文字压窄折行（浏览器会，比如「54」被拆成两行）；app 写了 flex、宽度的照写的来
+const TEXT_BASE = 'display:block;box-sizing:border-box;border-style:solid;border-width:0;flex-shrink:0;min-width:0;white-space:pre-wrap;word-break:break-all;color:#ffffff;font-size:14px;'
 
 function kebab(k: string) {
     return k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())

@@ -46,7 +46,7 @@ App 窗口左边的预览，在浏览器里模拟手环上的快应用框架，�
 | 手环上 | 预览里 |
 |---|---|
 | `div`（和其他容器） | `div`，只有 flex 布局、默认横排、边框写了宽度和颜色就是实线 |
-| `text`、`span`、`a` | 文字，默认白色 14px；`lines` 用省略截断模拟 |
+| `text`、`span`、`a` | 文字，默认白色 14px，不收缩（一行放不下时不会被压窄折行，和手环一样）；`lines` 用省略截断模拟 |
 | `image` | `img`，按像素放大不模糊 |
 | `image-animator` | `img` 按 `duration`（每帧停多久）换帧；`$element(id)` 有 `start` / `stop` / `pause` / `resume` |
 | `swiper` | 按住拖动跟着走，松手拖过 20% 就翻页，否则弹回；`index` 变了翻过去；`$element(id).swipeTo({index})` |
