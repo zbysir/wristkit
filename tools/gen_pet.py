@@ -5,6 +5,7 @@
   K 轮廓  F 毛色  S 条纹  D 暗部  C 浅色（口鼻、围兜、爪子）  P 粉色  E 眼睛  W 眼睛高光  . 透明
 表情是在格子图上替换几个格子；尾巴、牌子、Z、彩纸、笔记本用代码画（尾巴先画，压在身体后面）。
 画布 40×40 格，按最近邻放大 SCALE 倍。三种猫共用格子图，只换配色。
+Clawd（Claude Code 的吉祥物）和边牧（gerdr 的狗）不是猫，各自单独画，只在手环上。
 手环上的帧直接按屏幕上显示的像素（BAND_PX）出，不让手环缩放：手环缩放会插值，没描边的 Clawd 边缘发糊。
 怎么画、踩过哪些坑见 docs/pixel-cat.md。
 
@@ -30,7 +31,7 @@ OUT = os.environ.get("PET_OUT") or os.path.join(os.path.dirname(os.path.abspath(
 # App 自己的一套（菜单栏图标、连接向导里的猫），和插件的分开放，只要用到的几种动作
 APP_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "app", "frontend", "public", "pet")
 APP_STATES = ("sleep", "work", "celebrate")
-APP_SKINS = ("orange", "gray", "white")  # Mac App 菜单栏、连接向导用的猫；Clawd 只在手环上
+APP_SKINS = ("orange", "gray", "white")  # Mac App 菜单栏、连接向导用的猫；Clawd、边牧只在手环上
 
 # 坐着的猫，正面（28 列 × 28 行），左右对称（第 c 列 ↔ 第 24-c 列）。尾巴不在格子图里，见 draw_tail。
 # 第 0~17 行是头，21 格宽（第 2~22 列）：小耳朵，耳朵内侧斜线直接接到平的头顶（中间不要拱起）；
@@ -354,18 +355,159 @@ def clawd_sleep_frames():
     return out
 
 
+# ---------- 边牧：gerdr 的狗 ----------
+# gerdr logo（~/dev/bysir/gerdr/ui/public/icon.svg）是一条侧面在跑的蓝陨石色边牧，只有 16×11 格；照原样放大，
+# 身子长、腿长、脖子直，像马。所以和猫一样画成正面坐着、逐格手绘，配色照 logo：蓝毛、白色脸中线、白嘴白胸口、橙项圈。
+# 让人一眼认出是狗（不是猫）的是：垂下来的耳朵、白色长嘴巴配大黑鼻子、伸舌头。
+# 身子小（8 行，比脸窄），整块蓝毛，胸口一块往下收窄的白（V 字），底下正中间露两只小白爪：
+# 身子大半是白、两侧只剩一条蓝的话，两侧的蓝像鲸鱼的鳍；画出两条白前腿的话，腿比脸还抢眼。
+# 格子图 25 列 × 25 行，左右对称：只写左半边（第 0~12 列，第 12 列是中线），右半边镜像。
+# 比猫矮 3 行，画的时候往下挪 COLLIE_DY 格，脚底和猫对齐。
+#   K 轮廓  B 毛色  D 耳朵（深一点的毛色）  W 白  N 鼻子  T 项圈  . 透明；眼睛、嘴另外叠
+COLLIE_HALF = """
+....KKKKKKKKK
+..KKBBBBBBBBB
+.KDDBBBBBBBWW
+KDDDBBBBBBBWW
+KDDDBBBBBBBWW
+KDDDBBBBBBBWW
+KDDDBBBBBBBWW
+KDDDBBBBBBBWW
+KDDDBBBBBBWWW
+KDDDBBBBBWWWW
+.KDDKBBBWWWNN
+.KDDKBBWWWWNN
+..KKKBWWWWWWW
+....KBWWWWWWW
+.....KWWWWWWW
+......KKKKKKK
+......KTTTTTT
+.....KBBBWWWW
+.....KBBBBWWW
+....KBBBBBBWW
+....KBBBBBBBW
+....KBBBBBBBB
+....KBBBBWWWK
+....KBBBBWWWK
+.....KKKKKKKK
+""".strip("\n").split("\n")
+COLLIE_BASE = [h + h[:-1][::-1] for h in COLLIE_HALF]
+COLLIE_DY = 3
+COLLIE = {"K": (22, 30, 56), "B": (58, 130, 247), "D": (34, 88, 196), "W": (236, 238, 242), "N": (24, 24, 30),
+          "T": (217, 119, 74), "E": (24, 24, 30), "H": (255, 255, 255), "P": (240, 110, 130),
+          "C": (236, 238, 242)}  # C：敲键盘的爪子（draw_typing_paws 用）
+# 眼睛（左眼第 6~8 列、右眼第 16~18 列，第 6~8 行），右眼照抄左眼（高光都在左上）
+COLLIE_EYES = {
+    "open": ["BBB", "HEE", "EEE"],
+    "wide": ["HEE", "EEE", "EEE"],  # 瞪大：往上多一行
+    "focus": ["BBB", "EEE", "EEE"],  # 往下看屏幕：只剩下半截
+    "happy": ["BBB", "BEB", "EBE"],  # ^ ^
+    "closed": ["BBB", "BBB", "EEE"],  # 闭眼：一道线
+}
+# 嘴（第 12~15 行，第 10~14 列）：鼻子下面一道竖线，两边嘴角；"." 表示不改
+COLLIE_MOUTHS = {
+    "smile": ["WWKWW", "KK.KK", ".....", "....."],
+    "tongue": ["WWKWW", "KKPKK", ".PPP.", ".PPP."],  # 伸舌头喘气，舌头挂到下巴外面
+    "open": ["WKKKW", "WKPKW", ".KKK.", "....."],  # 张嘴叫
+}
+
+
+def collie_grid(eyes="open", mouth="smile"):
+    g = [list(r) for r in COLLIE_BASE]
+    for i, row in enumerate(COLLIE_EYES[eyes]):
+        for j, ch in enumerate(row):
+            g[6 + i][6 + j] = ch
+            g[6 + i][16 + j] = ch
+    for i, row in enumerate(COLLIE_MOUTHS[mouth]):
+        for j, ch in enumerate(row):
+            if ch != ".":
+                g[12 + i][10 + j] = ch
+    return g
+
+
+def paste_collie(img, g, dy):
+    paste(img, g, dy=dy + COLLIE_DY, pal=COLLIE)
+
+
+def draw_collie_tail(img, dy, wag):
+    # 尾巴：从身子右下角往外、往上弯的一道弧，两格粗，只有最尖上一格是白的；先画，身子盖住尾巴根。
+    # 尖上一大块白、竖着翘的话像鲸鱼尾巴。wag（-1/0/1）让上半截左右摆
+    pts = [(28, 34), (29, 34), (29, 33), (30, 33), (30, 32), (31, 32), (31, 31), (32, 31), (31 + wag, 30), (32 + wag, 30), (31 + wag, 29)]
+    for i, (x, y) in enumerate(pts):
+        img.putpixel((x, y + dy), (COLLIE["W"] if i == len(pts) - 1 else COLLIE["B"]) + (255,))
+
+
+def collie_work_frames():
+    out = []
+    for i in range(6):
+        img = new_frame()
+        dy = 1 if i in (2, 3) else 0
+        draw_collie_tail(img, dy, i % 2)
+        paste_collie(img, collie_grid("focus", "smile"), dy)
+        draw_laptop(ImageDraw.Draw(img), glow=i % 3 != 2)
+        draw_typing_paws(img, i % 2 == 0, COLLIE)
+        out.append(finish(img))
+    return out
+
+
+def collie_alert_frames():
+    out = []
+    for i, dy in enumerate([0, -2, -3, -2, 0, 0]):
+        img = new_frame()
+        draw_collie_tail(img, dy, 1 if i % 2 else -1)
+        paste_collie(img, collie_grid("wide", "open"), dy)
+        draw_sign(ImageDraw.Draw(img), dy, wobble=1 if i % 2 else 0)
+        out.append(finish(img))
+    return out
+
+
+def collie_celebrate_frames():
+    rnd = random.Random(7)
+    out = []
+    for i, dy in enumerate([0, -1, -2, -1, 0, 0]):
+        bits = [(rnd.randrange(1, 39), rnd.randrange(0, 6), rnd.choice(CONFETTI)) for _ in range(14)]
+        img = new_frame()
+        draw_collie_tail(img, dy, 1 if i % 2 else -1)  # 高兴：尾巴摇得快
+        paste_collie(img, collie_grid("happy", "tongue"), dy)
+        d = ImageDraw.Draw(img)
+        for x, y, c in bits:
+            fy = y + (i * 2) % 6
+            rect(d, x, fy, x + 1, fy, c)
+        out.append(finish(img))
+    return out
+
+
+def collie_sleep_frames():
+    out = []
+    for i in range(8):
+        img = new_frame()
+        dy = 1 if i % 4 in (1, 2) else 0
+        draw_collie_tail(img, dy, 0)
+        paste_collie(img, collie_grid("closed", "smile"), dy)
+        d = ImageDraw.Draw(img)
+        k = i % 4
+        draw_z(d, 33, 8 - k * 2, 3)  # 比猫的往右上一点：狗耳朵垂在头两边，头顶右角更靠外
+        if k >= 2:
+            draw_z(d, 36, 2 - (k - 2) * 2, 4)
+        out.append(finish(img))
+    return out
+
+
 STATES = {"work": work_frames, "alert": alert_frames, "celebrate": celebrate_frames, "sleep": sleep_frames}
 
 
 CLAWD_STATES = {"work": clawd_work_frames, "alert": clawd_alert_frames, "celebrate": clawd_celebrate_frames, "sleep": clawd_sleep_frames}
+COLLIE_STATES = {"work": collie_work_frames, "alert": collie_alert_frames, "celebrate": collie_celebrate_frames, "sleep": collie_sleep_frames}
+# 不是猫、单独画的形象，只在手环上
+SPECIAL = {"clawd": CLAWD_STATES, "collie": COLLIE_STATES}
 
 
 def main():
     rows, files, band_files = [], {}, {}
-    for skin in list(SKINS) + ["clawd"]:
+    for skin in list(SKINS) + list(SPECIAL):
         row = []
         for state in STATES:
-            frames = CLAWD_STATES[state]() if skin == "clawd" else STATES[state](SKINS[skin])
+            frames = SPECIAL[skin][state]() if skin in SPECIAL else STATES[state](SKINS[skin])
             for i, img in enumerate(frames):
                 files[f"{skin}/{state}_{i}.png"] = png(img)
                 band_files[f"{skin}/{state}_{i}.png"] = png(band_frame(img))
@@ -374,10 +516,10 @@ def main():
 
     # 删掉手环上旧的帧：以前直接放在 assets/<皮肤>/ 下，或者在别的尺寸目录里
     for name in os.listdir(OUT):
-        if name.isdigit() or name in SKINS or name == "clawd":
+        if name.isdigit() or name in SKINS or name in SPECIAL:
             shutil.rmtree(os.path.join(OUT, name))
     for out, written, skins, keep in ((os.path.join(OUT, str(BAND_PX)), band_files, None, None), (APP_OUT, files, APP_SKINS, APP_STATES)):
-        for skin in skins or list(SKINS) + ["clawd"]:  # 删掉旧帧（比如帧数变少时多出来的）
+        for skin in skins or list(SKINS) + list(SPECIAL):  # 删掉旧帧（比如帧数变少时多出来的）
             shutil.rmtree(os.path.join(out, skin), ignore_errors=True)
         for name, data in written.items():
             skin, file = name.split("/")

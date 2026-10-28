@@ -402,6 +402,20 @@ func TestAgentCat(t *testing.T) {
 	if !found {
 		t.Fatal("安装包里没有猫的图")
 	}
+	// 边牧：单独画的形象，帧在自己的目录里
+	b.store("config", map[string]any{"skin": "collie"})
+	sprite = findNode(b.tree(), func(n map[string]any) bool { return hasClass(n, "sprite") })
+	frames, _ = sprite["images"].([]any)
+	if len(frames) != 6 || frames[0].(map[string]any)["src"] != "/assets/222/collie/alert_0.png" {
+		t.Fatalf("边牧的动画不对：%v", sprite["images"])
+	}
+	found = false
+	for _, f := range a.Files {
+		found = found || f.Name == "assets/222/collie/alert_0.png"
+	}
+	if !found {
+		t.Fatal("安装包里没有边牧的图")
+	}
 }
 
 // 太大的数据分片发，手环上拼回去

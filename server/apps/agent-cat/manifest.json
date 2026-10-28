@@ -16,7 +16,7 @@
   "settings": [
     {
       "key": "skin",
-      "title": "猫",
+      "title": "形象",
       "type": "select",
       "options": [
         {
@@ -34,6 +34,10 @@
         {
           "value": "clawd",
           "label": "Clawd（Claude Code 的小家伙）"
+        },
+        {
+          "value": "collie",
+          "label": "边牧（gerdr 的小狗）"
         }
       ],
       "default": "orange"
