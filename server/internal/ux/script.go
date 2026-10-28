@@ -6,6 +6,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/evanw/esbuild/pkg/api"
 )
@@ -25,6 +26,7 @@ type Options struct {
 // compileScript 返回 $app_script$ 函数的代码和用到的系统接口（如 system.vibrator）
 func compileScript(fsys fs.FS, file, src string, page bool, opts Options) (string, []string, error) {
 	features := map[string]bool{}
+	var mu sync.Mutex // esbuild 并行解析各个 import，记 features 要加锁
 	dir := path.Dir(file)
 	exts := []string{"", ".js", ".json", "/index.js"}
 	resolver := api.Plugin{Name: "app", Setup: func(b api.PluginBuild) {
@@ -37,7 +39,9 @@ func compileScript(fsys fs.FS, file, src string, page bool, opts Options) (strin
 				return api.OnResolveResult{Path: file, Namespace: "script"}, nil
 			}
 			if strings.HasPrefix(p, "@system.") || strings.HasPrefix(p, "@service.") {
+				mu.Lock()
 				features[p[1:]] = true
+				mu.Unlock()
 				return api.OnResolveResult{Path: p[1:], Namespace: "native"}, nil
 			}
 			if !strings.HasPrefix(p, "./") && !strings.HasPrefix(p, "../") && !strings.HasPrefix(p, "/") {
