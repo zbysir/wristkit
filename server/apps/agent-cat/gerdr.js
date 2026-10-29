@@ -24,8 +24,27 @@ export function listSessions() {
     return null
   }
   if (!Array.isArray(sessions)) return null
-  // id 前面加 gerdr:，免得和 herdr 的窗格 id 撞上；seq 用最后更新的时间（毫秒），同一档里最近动过的在前
-  return sessions.map((s) => ({ id: 'gerdr:' + s.id, agent: s.agent, project: project(s.cwd), title: s.title || '', detail: detail(s), status: STATUS[s.status] || 'unknown', seq: s.updatedAt || 0 }))
+  const seen = {}
+  const out = sessions.map((s) => {
+    const id = 'gerdr:' + s.id
+    const status = STATUS[s.status] || 'unknown'
+    seen[id] = true
+    // id 前面加 gerdr:，免得和 herdr 的窗格 id 撞上
+    return { id, agent: s.agent, project: project(s.cwd), title: s.title || '', detail: detail(s), status, seq: changedAt(id, status, s.updatedAt) }
+  })
+  for (const id in changed) if (!seen[id]) delete changed[id]
+  return out
+}
+
+// seq：状态最后一次变化的时间（毫秒），同一档里刚变过状态的在前。
+// 不能直接用 updatedAt：会话在跑时它几秒就变一次，整份 agent 列表（几 KB、要分片）就跟着几秒重推一次给手环，
+// 手环一连几个小时处理不过来会自己重启
+const changed = {} // id → { status, at }
+
+function changedAt(id, status, updatedAt) {
+  const c = changed[id]
+  if (!c || c.status !== status) changed[id] = { status, at: updatedAt || Date.now() }
+  return changed[id].at
 }
 
 // 等你处理的是什么：问的问题、要批准的命令，或者出错的原因。手环气泡的大字、通知正文用它。

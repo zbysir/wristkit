@@ -5,6 +5,9 @@ import { publish, exec, storage, getConfig, onConfig, notifyBand, wakeBand, read
 import { listSessions } from './gerdr'
 
 const POLL_MS = 3000
+// 闲着的 agent 只推最近闲下来的这么几个（都闲着时气泡轮流显示它们），空闲总数另外推（idleCount）。
+// 全推的话几十个 agent 有 8KB、要分片，手环上的 Agent 猫隔两个小时就在处理它时内存不够崩掉，接着手环重启
+const IDLE_KEEP = 5
 const MISSING_RETRY_MS = 30000 // 没装 herdr / gerdr、没开时，隔这么久再试，别一直试
 const STATUS_TEXT = { done: '完成', idle: '完成', blocked: '等你处理', working: '开始跑' }
 
@@ -212,6 +215,7 @@ function poll() {
     prev = null
     blocked = false
     publish('agents', [])
+    publish('idleCount', 0)
     return setTimeout(poll, POLL_MS)
   }
   const agents = raw.sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)) // 顺序固定，内容没变就不会重推
@@ -228,7 +232,11 @@ function poll() {
   for (const a of agents) prev[a.id] = a.status
   blocked = agents.some((a) => a.status === 'blocked')
   // 先推列表，过一会儿再提醒：通知先到的话，手环处理通知时后面的消息会堵一秒多，猫换动作就比通知晚好几秒
-  publish('agents', agents)
+  const idle = agents.filter((a) => a.status === 'idle' || a.status === 'unknown')
+  const recent = {}
+  for (const a of idle.slice().sort((x, y) => (y.since || 0) - (x.since || 0)).slice(0, IDLE_KEEP)) recent[a.id] = true
+  publish('idleCount', idle.length)
+  publish('agents', agents.filter((a) => recent[a.id] || (a.status !== 'idle' && a.status !== 'unknown')))
   setTimeout(() => alert(events), 500)
   setTimeout(poll, POLL_MS)
 }

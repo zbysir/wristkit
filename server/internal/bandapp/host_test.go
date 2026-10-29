@@ -374,6 +374,9 @@ func TestAgentCat(t *testing.T) {
 	b.store("agents", agentList("blocked", "working", "idle"))
 	tree := b.waitText("1 个等你处理！")
 	b.waitText("任务api|1/2|api")
+	// 闲着的 Mac 只推几个，空闲总数单独推
+	b.store("idleCount", 40)
+	b.waitText("|40|")
 	// 点气泡换下一个：卡住的 > 在跑的
 	bubble := findNode(tree, func(n map[string]any) bool { return hasClass(n, "bubble") })
 	if bubble == nil || bubble["ev"] == nil {

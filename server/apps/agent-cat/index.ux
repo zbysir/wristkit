@@ -96,7 +96,7 @@
 // 有 agent 卡住了它举牌，卡太久（默认 5 分钟）就着急；刚跑完一个就庆祝 8 秒，有在跑的就敲笔记本，都空闲时睡觉。
 // 下面的气泡显示一个需要关注的 agent：大字是它在问什么（gerdr 给的）或任务标题，小字是项目；点猫或气泡换下一个。右下角的小鱼干是今天完成了几个任务，左边是今天 Claude Code 花了多少钱。
 // 往上翻（或点小鱼干）是「今日」：最近 7 天的完成数 / 花费，和全部额度。
-// 数据都是 Mac 上的 server.js 推来的（agents、stats 在 herdr.js 和 gerdr.js，cost 在 cost.js，usage 在 server.js），到了调 onStore。
+// 数据都是 Mac 上的 server.js 推来的（agents、idleCount、stats 在 herdr.js 和 gerdr.js，cost 在 cost.js，usage 在 server.js），到了调 onStore。
 import device from '@system.device'
 import vibrator from '@system.vibrator'
 
@@ -276,7 +276,7 @@ export default {
     this.counts.blocked = n.blocked
     this.counts.working = n.working
     this.counts.done = n.done
-    this.counts.idle = n.idle
+    this.counts.idle = st.idleCount != null ? st.idleCount : n.idle // 闲着的 Mac 只推几个，总数单独推
     if (st.config || !this.skinWait) this.startAnim(skin, ACTION[mood][0], ACTION[mood][1])
 
     // 气泡
