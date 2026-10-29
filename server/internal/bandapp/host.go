@@ -461,12 +461,14 @@ func (h *Host) HandleMessage(pkg string, m map[string]any) {
 		}
 		h.mu.Unlock()
 		h.markDirty()
+		slog.Info("手环上打开了 app", "app", app)
 		h.foregroundChanged(app, true)
 	case "bye":
 		h.mu.Lock()
 		was := h.foreground[app]
 		delete(h.foreground, app)
 		h.mu.Unlock()
+		slog.Info("手环上的 app 退到后台", "app", app)
 		if was {
 			h.foregroundChanged(app, false)
 		}

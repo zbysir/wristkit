@@ -47,6 +47,7 @@ App 没有经过 Apple 公证（要付费的开发者账号），第一次打开
 - **提醒**：在 Agent 猫的设置里。agent 跑完、卡住（可选开始跑）时发通知（手环震动）或者只亮屏（把手环点亮、切到猫，不震动）；还可以设「卡住几分钟算太久」（猫着急，再提醒一次）和「有 agent 等你回答时保持亮屏」。
 - **Claude Code 额度**：Codex 的额度直接从它的会话日志读，不用设置。Claude Code 只把额度告诉状态栏命令，要在 App 里打开「显示 Claude Code 额度」：App 会把 Claude Code 的状态栏换成一个小脚本，先存一份数据（按会话各存一份，Agent 猫用来算每天花了多少钱）再交给你原来的状态栏命令，状态栏显示不变；关掉会原样还原，改之前会备份 `~/.claude/settings.json`。只有 Pro / Max 订阅才有额度。
 - **数据放在哪**：`~/Library/Application Support/miband-pet/`。`config.json` 和 `session.json` 是配置和小米账号登录态（权限 600），`plugin-data/` 是 app 在 Mac 上存的数据（比如 Agent 猫记的每天完成了几个任务），`apps/` 是你自己的 app。
+- **日志**：`~/Library/Logs/wristkit/wristkit.log`，记着手环什么时候连上、断开，手环上打开、关掉了哪个 app，app 报的错。手环出问题（断连、自己重启）时对着时间查。满 5MB 换一个文件，只留上一个。
 
 > 这个项目以前叫 miband pet。为了不影响已经在用的人，数据目录（`miband-pet`）、App 标识（`dev.bysir.miband-pet`）、`plugin-data/` 目录都沿用原来的。
 

@@ -16,6 +16,7 @@ import (
 var assets embed.FS
 
 func main() {
+	setupLog()
 	// IOBluetooth 的回调投递在主线程 run loop 上；Wails 的 App 本身就在主线程跑 NSApplication，不需要 bt.RunMain
 	app := NewApp()
 	err := wails.Run(&options.App{
