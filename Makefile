@@ -1,12 +1,14 @@
 # wristkit 构建入口
 #   make app        构建 macOS App：server/app/build/bin/wristkit.app（app 的编译、打包都在 App 里，不用 Node 和小米的工具）
 #   make cli        构建命令行版：server/miband
+#   make daemon     构建不带窗口的后台版：server/app/build/bin/wristkit（wristkit serve / wristkit gerdr，设置页走 HTTP）
+#   make install-daemon  构建后台版并装到 ~/.local/bin/wristkit（gerdr 插件 addons/wristkit 找的就是它）
 #   make test       跑 Go 测试
 #   make release VERSION=0.1.0   构建 Intel / Apple 芯片通用的 App，打成 dist/wristkit-0.1.0-mac.zip（CI 发版用）
 
 WAILS ?= $(shell command -v wails 2>/dev/null || echo $(HOME)/go/bin/wails)
 
-.PHONY: app cli test release
+.PHONY: app cli test release daemon install-daemon
 
 # 本机签名证书（名字见 SIGN_IDENTITY）。macOS 按“标识 + 证书”记蓝牙授权：
 # 不签名的话每次构建签名都变，每次都会重新弹蓝牙授权。证书怎么建见 README。
@@ -44,6 +46,24 @@ release:
 
 cli:
 	cd server && go build -o miband ./cmd/miband
+
+# 后台版和 App 是同一份代码（server/app），只是不带 Wails 的构建标签，不开窗口。
+# 它不在 .app 包里，Info.plist（标识、蓝牙用途）嵌进二进制的 __TEXT,__info_plist；
+# 标识和签名证书都和 App 一样，macOS 把它和 App 当成同一个程序，蓝牙授权共用。
+DAEMON = server/app/build/bin/wristkit
+daemon:
+	cd server/app && $(WAILS) generate module
+	cd server/app/frontend && npm install --no-audit --no-fund && npm run build
+	cd server/app && go build -ldflags '-s -w -linkmode=external -extldflags "-Wl,-sectcreate,__TEXT,__info_plist,$(CURDIR)/server/app/build/darwin/Info.daemon.plist"' -o build/bin/wristkit .
+	@if security find-identity -p codesigning | grep -q "$(SIGN_IDENTITY)"; then \
+		codesign --force --identifier dev.bysir.miband-pet -s "$(SIGN_IDENTITY)" "$(DAEMON)"; \
+	else \
+		echo "没找到签名证书「$(SIGN_IDENTITY)」，未签名：每次构建后都会重新弹蓝牙授权"; \
+	fi
+
+install-daemon: daemon
+	mkdir -p $(HOME)/.local/bin
+	cp $(DAEMON) $(HOME)/.local/bin/wristkit.new && mv $(HOME)/.local/bin/wristkit.new $(HOME)/.local/bin/wristkit
 
 # server/app 依赖构建好的前端（go:embed frontend/dist），由 make app 构建，这里不测
 test:

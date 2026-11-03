@@ -51,6 +51,17 @@ App 没有经过 Apple 公证（要付费的开发者账号），第一次打开
 
 > 这个项目以前叫 miband pet。为了不影响已经在用的人，数据目录（`miband-pet`）、App 标识（`dev.bysir.miband-pet`）、`plugin-data/` 目录都沿用原来的。
 
+## 不开窗口，在后台跑（比如当 gerdr 插件）
+
+不想开 App 的话，wristkit 也能不带窗口、不进菜单栏地在后台跑，功能和 App 一样，设置页用浏览器打开（http://127.0.0.1:7858）：
+
+- `wristkit serve`：在终端里跑。
+- **gerdr 插件**：把 [addons/wristkit](addons/wristkit) 放进 `~/.gerdr/addons/`（或者在 gerdr 的「扩展 → 商店」里加上 `zbysir/wristkit` 再安装）。gerdr 负责把 wristkit 跑起来、退出了再拉起来；gerdr 的「设置 → 扩展」里显示手环连没连上，它的设置里「控制面板 → 打开」进设置页。
+
+用的可执行文件：装了 wristkit.app 就直接用 App 里的那个（不会打开窗口）；没装的话在仓库里 `make install-daemon`，装到 `~/.local/bin/wristkit`。蓝牙授权和 App 是同一份，App 里允许过就不用再允许。
+
+手环同时只能连一个：后台在跑时别再打开 App。
+
 ## 写 app
 
 **最快的办法**：让 AI（Claude Code、Codex 等）先读 https://github.com/zbysir/wristkit/blob/main/skills/wristkit-app/SKILL.md ，再告诉它你想在手环上看到什么。

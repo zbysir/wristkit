@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CFBundleIdentifier</key>
+        <string>dev.bysir.miband-pet</string>
+        <key>CFBundleName</key>
+        <string>wristkit</string>
+        <key>CFBundleInfoDictionaryVersion</key>
+        <string>6.0</string>
+        <key>NSBluetoothAlwaysUsageDescription</key>
+        <string>wristkit 通过蓝牙连接小米手环，把 app 装到手环上、给它们推数据（比如显示 agent 状态的猫）。</string>
+    </dict>
+</plist>

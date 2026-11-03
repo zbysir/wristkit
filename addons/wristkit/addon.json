@@ -1,0 +1,31 @@
+{
+  "name": "wristkit",
+  "version": "0.1.0",
+  "description": "Runs wristkit in the background: the Xiaomi band shows your agents' state and buzzes when one finishes or gets stuck. No wristkit window; its settings open in the browser.",
+  "icon": "icon.svg",
+  "service": {
+    "command": "./run.sh"
+  },
+  "i18n": {
+    "zh": {
+      "name": "wristkit 手环",
+      "description": "在后台跑 wristkit：小米手环上显示 agent 的状态，跑完、卡住时震一下。不开 wristkit 的窗口，设置在浏览器里打开。",
+      "settings": {
+        "panel": {
+          "title": "控制面板",
+          "label": "打开",
+          "description": "wristkit 的设置：手环、Agent 猫、手环上的 app。"
+        }
+      }
+    }
+  },
+  "settings": [
+    {
+      "key": "panel",
+      "title": "Control panel",
+      "type": "link",
+      "label": "Open",
+      "description": "wristkit's settings: the band, Agent 猫, the apps on the band."
+    }
+  ]
+}

@@ -18,6 +18,7 @@ export interface AppState {
     setupError: string
     installing: string
     installProgress: number
+    headless: boolean // 后台运行（比如当 gerdr 插件）：没有菜单栏，设置页在浏览器里
     connected: boolean
     transport: '' | 'classic' | 'ble'
     lastError: string

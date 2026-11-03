@@ -50,10 +50,26 @@ type App struct {
 	loginCancel context.CancelFunc // 进行中的扫码登录
 
 	anim *trayAnim // 菜单栏的猫
+
+	// headless：不开窗口、不进菜单栏，作为后台进程跑（headless.go，比如当 gerdr 插件）。
+	// 设置页改由 HTTP 提供，事件经 emitFn 推给页面，不走 Wails。
+	headless bool
+	emitFn   func(name string, data any)
 }
 
 func NewApp() *App {
 	return &App{cfgPath: service.AppConfigPath(), anim: newTrayAnim()}
+}
+
+// emit 给前端发事件：App 里走 Wails，headless 时走 HTTP 的事件流。
+func (a *App) emit(name string, data any) {
+	if a.emitFn != nil {
+		a.emitFn(name, data)
+		return
+	}
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, name, data)
+	}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -192,9 +208,7 @@ func (a *App) emitStores() {
 		a.emitMu.Lock()
 		a.storesDue = false
 		a.emitMu.Unlock()
-		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "stores")
-		}
+		a.emit("stores", nil)
 	})
 }
 
@@ -211,8 +225,9 @@ func (a *App) emitState() {
 		a.emitMu.Lock()
 		a.emitDue = false
 		a.emitMu.Unlock()
-		if a.ctx != nil {
-			runtime.EventsEmit(a.ctx, "state")
+		a.emit("state", nil)
+		if a.headless {
+			return
 		}
 		st := a.state()
 		tray.SetInfo(trayText(st))
@@ -306,7 +321,7 @@ func (a *App) StartLogin() (string, error) {
 			}
 			res.Error = err.Error()
 		}
-		runtime.EventsEmit(a.ctx, "login", res)
+		a.emit("login", res)
 	}()
 	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(login.QRImage), nil
 }
@@ -329,6 +344,7 @@ type AppState struct {
 	SetupError      string  `json:"setupError"`
 	Installing      string  `json:"installing"`
 	InstallProgress float64 `json:"installProgress"`
+	Headless        bool    `json:"headless"` // 后台运行、没有菜单栏：页面藏掉只有 App 才有的设置
 }
 
 // GetState 返回 AppState 的 JSON 对象（前端的类型定义在 frontend/src/types.ts，
@@ -343,7 +359,7 @@ func (a *App) GetState() map[string]any {
 func (a *App) state() AppState {
 	a.mu.Lock()
 	svc := a.svc
-	st := AppState{ConfigPath: a.cfgPath, SetupError: a.setupErr, Installing: a.installing, InstallProgress: a.progress}
+	st := AppState{ConfigPath: a.cfgPath, SetupError: a.setupErr, Installing: a.installing, InstallProgress: a.progress, Headless: a.headless}
 	if a.cfg != nil {
 		st.Configured = a.cfg.Validate() == nil
 	}

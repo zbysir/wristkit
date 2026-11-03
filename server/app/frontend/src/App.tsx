@@ -206,6 +206,7 @@ function SettingField({app, setting, run}: { app: AppInfo, setting: AppSetting, 
 // ---------- 菜单栏的猫：App 自己的设置，和手环上 Agent 猫的「形象」分开选 ----------
 
 function MenubarCard({state, run}: { state: AppState, run: Run }) {
+    if (state.headless) return null // 后台运行时没有菜单栏
     const current = state.settings?.pet ?? 'orange'
     return (
         <Card>

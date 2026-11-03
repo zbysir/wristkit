@@ -5,17 +5,28 @@ package main
 import (
 	"embed"
 	"log/slog"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
+
+	"miband/internal/bt"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
+	// wristkit serve / wristkit gerdr：不开窗口，后台运行（headless.go）
+	if len(os.Args) > 1 && (os.Args[1] == "serve" || os.Args[1] == "gerdr") {
+		mode := os.Args[1]
+		disclaim() // 由 gerdr 等别的程序拉起时，蓝牙权限算在自己头上（disclaim_darwin.go）
+		setupLog()
+		bt.RunMain(func() int { return runHeadless(mode, os.Args[2:]) })
+		return
+	}
 	setupLog()
 	// IOBluetooth 的回调投递在主线程 run loop 上；Wails 的 App 本身就在主线程跑 NSApplication，不需要 bt.RunMain
 	app := NewApp()
